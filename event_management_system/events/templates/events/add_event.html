@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Event</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'events/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <div class="navbar">
+            <h1>Event Management</h1>
+            <div class="nav-links">
+                <a href="{% url 'home' %}">Home</a>
+                <a href="{% url 'event_list' %}">Events</a>
+                <a href="{% url 'logout' %}">Logout</a>
+            </div>
+        </div>
+
+        <h2 class="page-title">Add New Event</h2>
+
+        <div class="form-card">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn">Add Event</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
