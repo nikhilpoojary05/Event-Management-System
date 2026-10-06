@@ -1,7 +1,8 @@
 from decimal import Decimal
 
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Sum
 from django.contrib.auth.models import User
 
 
@@ -19,6 +20,30 @@ class Event(models.Model):
 
     def __str__(self):
         return self.event_name
+
+    def booked_seats(self):
+        return self.booking_set.aggregate(total=Sum('number_of_tickets'))['total'] or 0
+
+    def remaining_seats(self):
+        return self.capacity - self.booked_seats()
+
+    def book(self, user, number_of_tickets):
+        """Create a booking, or raise NotEnoughSeats.
+
+        The seat check and insert run in one transaction with the event row
+        locked, so concurrent requests can't both take the last seats.
+        """
+        with transaction.atomic():
+            event = Event.objects.select_for_update().get(pk=self.pk)
+            if number_of_tickets > event.remaining_seats():
+                raise NotEnoughSeats
+            return Booking.objects.create(
+                user=user, event=event, number_of_tickets=number_of_tickets
+            )
+
+
+class NotEnoughSeats(Exception):
+    pass
 
 
 class Booking(models.Model):

@@ -1,12 +1,16 @@
+import threading
+import time as time_module
 from datetime import time, timedelta
+from unittest import mock
 
 from django.contrib.auth.models import Permission, User
-from django.test import TestCase
+from django.db import connection
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from .forms import BookingForm, EventForm
-from .models import Booking, Event
+from .models import Booking, Event, NotEnoughSeats
 
 
 def make_event(**overrides):
@@ -146,3 +150,44 @@ class LoginRedirectTests(TestCase):
         response = self.client.post(reverse('login'), {'username': 'alice', 'password': 'wrong', 'next': target})
         self.assertContains(response, 'Invalid username or password')
         self.assertContains(response, f'name="next" value="{target}"')
+
+
+class ConcurrentBookingTests(TransactionTestCase):
+    """Two requests racing for the last seats must not overbook."""
+
+    def test_simultaneous_bookings_cannot_exceed_capacity(self):
+        event = make_event(capacity=10)
+        users = [User.objects.create_user(f'racer{i}', password='pw-for-tests-123') for i in range(2)]
+
+        # Slow down the seat check so both threads are inside book() at once.
+        original = Event.remaining_seats
+
+        def slow_remaining_seats(self):
+            seats = original(self)
+            time_module.sleep(0.3)
+            return seats
+
+        barrier = threading.Barrier(len(users))
+        results = []
+
+        def attempt(user):
+            try:
+                barrier.wait()
+                Event.objects.get(pk=event.pk).book(user, 6)
+                results.append('booked')
+            except NotEnoughSeats:
+                results.append('rejected')
+            except Exception as exc:
+                results.append(exc)
+            finally:
+                connection.close()
+
+        with mock.patch.object(Event, 'remaining_seats', slow_remaining_seats):
+            threads = [threading.Thread(target=attempt, args=(u,)) for u in users]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        self.assertCountEqual(results, ['booked', 'rejected'])
+        self.assertEqual(event.booked_seats(), 6)
