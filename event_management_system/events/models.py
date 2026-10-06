@@ -2,9 +2,27 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
-from django.db.models import Sum
+from django.db.models import F, Q, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.contrib.auth.models import User
+
+
+class EventQuerySet(models.QuerySet):
+    def upcoming(self):
+        return self.filter(date__gte=timezone.localdate()).order_by('date', 'time')
+
+    def past(self):
+        return self.filter(date__lt=timezone.localdate()).order_by('-date', '-time')
+
+    def with_seat_counts(self):
+        """Annotate booked_count and seats_left in the same query."""
+        return self.annotate(
+            booked_count=Coalesce(
+                Sum('booking__number_of_tickets', filter=Q(booking__status=Booking.Status.BOOKED)), 0
+            ),
+            seats_left=F('capacity') - F('booked_count'),
+        )
 
 
 class Event(models.Model):
@@ -18,6 +36,8 @@ class Event(models.Model):
         max_digits=8, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))]
     )
+
+    objects = EventQuerySet.as_manager()
 
     def __str__(self):
         return self.event_name

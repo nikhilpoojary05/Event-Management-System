@@ -1,6 +1,4 @@
 from django.contrib import admin
-from django.db.models import Q, Sum
-from django.db.models.functions import Coalesce
 from .models import Event, Booking
 
 
@@ -13,15 +11,11 @@ class EventAdmin(admin.ModelAdmin):
     ordering = ('-date', '-time')
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            booked=Coalesce(
-                Sum('booking__number_of_tickets', filter=Q(booking__status=Booking.Status.BOOKED)), 0
-            )
-        )
+        return super().get_queryset(request).with_seat_counts()
 
-    @admin.display(description='Seats left')
+    @admin.display(description='Seats left', ordering='seats_left')
     def seats_left(self, event):
-        return event.capacity - event.booked
+        return event.seats_left
 
 
 @admin.register(Booking)

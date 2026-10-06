@@ -111,6 +111,57 @@ button:focus-visible {
     gap: 22px;
 }
 
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin: 20px 0;
+}
+
+.tabs a {
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: white;
+    color: #1d4ed8;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid #bfdbfe;
+}
+
+.tabs a[aria-current="page"] {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+.badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.badge-soldout {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.badge-low {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 24px 0;
+    font-weight: 600;
+}
+
 .card {
     background: white;
     border-radius: 18px;

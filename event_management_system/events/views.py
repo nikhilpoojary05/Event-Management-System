@@ -1,3 +1,4 @@
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -12,9 +13,19 @@ def home(request):
     return render(request, 'events/home.html')
 
 
+EVENTS_PER_PAGE = 10
+
+
 def event_list(request):
-    events = Event.objects.all()
-    return render(request, 'events/event_list.html', {'events': events})
+    show_past = request.GET.get('when') == 'past'
+    events = Event.objects.with_seat_counts()
+    events = events.past() if show_past else events.upcoming()
+    page = Paginator(events, EVENTS_PER_PAGE).get_page(request.GET.get('page'))
+    return render(request, 'events/event_list.html', {
+        'page': page,
+        'events': page.object_list,
+        'show_past': show_past,
+    })
 
 
 def event_detail(request, event_id):
