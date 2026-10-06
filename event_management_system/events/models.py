@@ -22,6 +22,10 @@ class Event(models.Model):
     def __str__(self):
         return self.event_name
 
+    @property
+    def is_past(self):
+        return self.date < timezone.localdate()
+
     def booked_seats(self):
         return self.booking_set.filter(status=Booking.Status.BOOKED).aggregate(
             total=Sum('number_of_tickets')
@@ -31,13 +35,15 @@ class Event(models.Model):
         return self.capacity - self.booked_seats()
 
     def book(self, user, number_of_tickets):
-        """Create a booking, or raise NotEnoughSeats.
+        """Create a booking, or raise EventInPast / NotEnoughSeats.
 
         The seat check and insert run in one transaction with the event row
         locked, so concurrent requests can't both take the last seats.
         """
         with transaction.atomic():
             event = Event.objects.select_for_update().get(pk=self.pk)
+            if event.is_past:
+                raise EventInPast
             if number_of_tickets > event.remaining_seats():
                 raise NotEnoughSeats
             return Booking.objects.create(
@@ -45,7 +51,15 @@ class Event(models.Model):
             )
 
 
-class NotEnoughSeats(Exception):
+class BookingError(Exception):
+    pass
+
+
+class NotEnoughSeats(BookingError):
+    pass
+
+
+class EventInPast(BookingError):
     pass
 
 
@@ -62,7 +76,7 @@ class Booking(models.Model):
 
     @property
     def can_cancel(self):
-        return self.status == self.Status.BOOKED and self.event.date >= timezone.localdate()
+        return self.status == self.Status.BOOKED and not self.event.is_past
 
     def cancel(self):
         """Cancel this booking, freeing its seats. Returns False if not allowed."""

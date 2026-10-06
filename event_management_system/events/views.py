@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from .models import Event, Booking, NotEnoughSeats
+from .models import Event, Booking, EventInPast, NotEnoughSeats
 from .forms import RegisterForm, EventForm, BookingForm
 from django.contrib.auth import login, authenticate, logout
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -75,6 +75,13 @@ def user_logout(request):
 def book_event(request, event_id):
     event = get_object_or_404(Event, id=event_id)
 
+    if event.is_past:
+        return render(request, 'events/book_event.html', {
+            'event': event,
+            'form': None,
+            'error': 'This event has already taken place.'
+        })
+
     if event.remaining_seats() <= 0:
         return render(request, 'events/book_event.html', {
             'event': event,
@@ -92,6 +99,12 @@ def book_event(request, event_id):
                     'form': form,
                     'event': event,
                     'error': 'Not enough seats available!'
+                })
+            except EventInPast:
+                return render(request, 'events/book_event.html', {
+                    'event': event,
+                    'form': None,
+                    'error': 'This event has already taken place.'
                 })
 
             messages.success(

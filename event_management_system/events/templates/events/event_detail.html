@@ -15,7 +15,9 @@
         <p><strong>Price:</strong> ₹{{ event.price }}</p>
 
         <div class="actions">
-            {% if user.is_authenticated %}
+            {% if event.is_past %}
+                <button class="btn btn-secondary" disabled>Event Ended</button>
+            {% elif user.is_authenticated %}
                 {% if remaining_seats > 0 %}
                     <a href="{% url 'book_event' event.id %}" class="btn">Book Now</a>
                 {% else %}
