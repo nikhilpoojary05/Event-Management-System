@@ -75,8 +75,9 @@ class BookEventViewTests(TestCase):
 
     def test_successful_booking(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.url, {'number_of_tickets': 3})
+        response = self.client.post(self.url, {'number_of_tickets': 3}, follow=True)
         self.assertRedirects(response, reverse('my_bookings'))
+        self.assertContains(response, 'Booked 3 ticket(s) for Tech Talk.')
         booking = Booking.objects.get()
         self.assertEqual((booking.user, booking.event, booking.number_of_tickets), (self.user, self.event, 3))
         self.assertEqual(booking.status, 'Booked')

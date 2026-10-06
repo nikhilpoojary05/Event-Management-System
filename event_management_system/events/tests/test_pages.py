@@ -67,11 +67,49 @@ class MyBookingsTests(TestCase):
         self.assertContains(self.client.get(self.url), 'You have no bookings yet.')
 
 
-class MarkupTests(TestCase):
-    def test_pages_have_viewport_and_lang(self):
-        event = make_event()
-        for url in (reverse('home'), reverse('event_list'), reverse('event_detail', args=[event.id]),
-                    reverse('login'), reverse('register')):
-            response = self.client.get(url)
-            self.assertContains(response, 'name="viewport"')
-            self.assertContains(response, '<html lang="en">')
+class LayoutTests(TestCase):
+    def setUp(self):
+        self.event = make_event()
+
+    def public_urls(self):
+        return [reverse('home'), reverse('event_list'), reverse('event_detail', args=[self.event.id]),
+                reverse('login'), reverse('register')]
+
+    def private_urls(self):
+        return [reverse('my_bookings'), reverse('book_event', args=[self.event.id]), reverse('add_event')]
+
+    def test_every_page_uses_base_layout(self):
+        self.client.force_login(make_user(can_add_events=True))
+        for url in self.public_urls() + self.private_urls():
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertTemplateUsed(response, 'events/base.html')
+                self.assertContains(response, '<html lang="en">')
+                self.assertContains(response, 'name="viewport"')
+                self.assertContains(response, '<nav class="nav-links" aria-label="Main">', count=1)
+
+    def test_nav_for_anonymous_user(self):
+        response = self.client.get(reverse('home'))
+        self.assertContains(response, f'href="{reverse("login")}"')
+        self.assertContains(response, f'href="{reverse("register")}"')
+        self.assertNotContains(response, 'My Bookings')
+        self.assertNotContains(response, 'Logout')
+
+    def test_nav_for_logged_in_user_is_same_on_every_page(self):
+        self.client.force_login(make_user())
+        for url in self.public_urls() + self.private_urls()[:2]:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, f'href="{reverse("my_bookings")}"')
+                self.assertContains(response, f'href="{reverse("logout")}"')
+                self.assertNotContains(response, f'href="{reverse("add_event")}"')
+
+    def test_current_page_marked_in_nav(self):
+        response = self.client.get(reverse('event_list'))
+        self.assertContains(response, f'href="{reverse("event_list")}" aria-current="page"')
+        self.assertContains(response, 'aria-current="page"', count=1)
+
+    def test_page_titles(self):
+        self.assertContains(self.client.get(reverse('home')), '<title>Home | Event Management</title>')
+        detail = self.client.get(reverse('event_detail', args=[self.event.id]))
+        self.assertContains(detail, '<title>Tech Talk | Event Management</title>')

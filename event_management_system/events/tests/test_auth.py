@@ -21,8 +21,9 @@ class RegisterTests(TestCase):
         return data
 
     def test_register_creates_user_and_logs_in(self):
-        response = self.client.post(self.url, self.data())
+        response = self.client.post(self.url, self.data(), follow=True)
         self.assertRedirects(response, reverse('event_list'))
+        self.assertContains(response, 'Welcome, newuser! Your account has been created.')
         user = User.objects.get(username='newuser')
         self.assertEqual(user.email, 'new@example.com')
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
@@ -77,8 +78,9 @@ class LoginTests(TestCase):
 class LogoutTests(TestCase):
     def test_logout_ends_session(self):
         self.client.force_login(make_user())
-        response = self.client.get(reverse('logout'))
+        response = self.client.get(reverse('logout'), follow=True)
         self.assertRedirects(response, reverse('home'))
+        self.assertContains(response, 'You have been logged out.')
         self.assertNotIn('_auth_user_id', self.client.session)
 
 
@@ -114,10 +116,11 @@ class AddEventPermissionTests(TestCase):
 
     def test_user_with_permission_creates_event(self):
         self.client.force_login(make_user(can_add_events=True))
-        response = self.client.post(self.url, self.event_data())
-        self.assertRedirects(response, reverse('event_list'))
+        response = self.client.post(self.url, self.event_data(), follow=True)
         event = Event.objects.get()
+        self.assertRedirects(response, reverse('event_detail', args=[event.id]))
         self.assertEqual((event.event_name, event.capacity), ('Launch Party', 40))
+        self.assertContains(response, 'Event &quot;Launch Party&quot; has been created.')
 
     def test_invalid_event_redisplays_form(self):
         self.client.force_login(make_user(can_add_events=True))

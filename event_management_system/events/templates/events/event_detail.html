@@ -1,56 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ event.event_name }} | Event Management</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'events/style.css' %}">
-</head>
-<body>
-    <div class="container">
-        <div class="navbar">
-            <h1>Event Management</h1>
-            <div class="nav-links">
-                <a href="{% url 'home' %}">Home</a>
-                <a href="{% url 'event_list' %}">Events</a>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'my_bookings' %}">My Bookings</a>
-                    <a href="{% url 'logout' %}">Logout</a>
+{% extends 'events/base.html' %}
+
+{% block title %}{{ event.event_name }}{% endblock %}
+
+{% block content %}
+    <h2 class="page-title">{{ event.event_name }}</h2>
+
+    <div class="card detail-card">
+        <p><strong>Description:</strong> {{ event.description }}</p>
+        <p><strong>Date:</strong> {{ event.date }}</p>
+        <p><strong>Time:</strong> {{ event.time }}</p>
+        <p><strong>Venue:</strong> {{ event.venue }}</p>
+        <p><strong>Total Capacity:</strong> {{ event.capacity }}</p>
+        <p><strong>Available Seats:</strong> {{ remaining_seats }}</p>
+        <p><strong>Price:</strong> ₹{{ event.price }}</p>
+
+        <div class="actions">
+            {% if user.is_authenticated %}
+                {% if remaining_seats > 0 %}
+                    <a href="{% url 'book_event' event.id %}" class="btn">Book Now</a>
                 {% else %}
-                    <a href="{% url 'register' %}">Register</a>
-                    <a href="{% url 'login' %}">Login</a>
+                    <button class="btn btn-secondary" disabled>Booking Closed</button>
                 {% endif %}
-            </div>
-        </div>
-
-        <h2 class="page-title">{{ event.event_name }}</h2>
-
-        <div class="card detail-card">
-            <p><strong>Description:</strong> {{ event.description }}</p>
-            <p><strong>Date:</strong> {{ event.date }}</p>
-            <p><strong>Time:</strong> {{ event.time }}</p>
-            <p><strong>Venue:</strong> {{ event.venue }}</p>
-            <p><strong>Total Capacity:</strong> {{ event.capacity }}</p>
-            <p><strong>Available Seats:</strong> {{ remaining_seats }}</p>
-            <p><strong>Price:</strong> ₹{{ event.price }}</p>
-
-            <div class="actions">
-                {% if user.is_authenticated %}
-                    {% if remaining_seats > 0 %}
-                        <a href="{% url 'book_event' event.id %}" class="btn">Book Now</a>
-                    {% else %}
-                        <button class="btn btn-secondary" disabled>Booking Closed</button>
-                    {% endif %}
-                {% else %}
-                    <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn">Login to Book</a>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="footer-link">
-            <a href="{% url 'event_list' %}">Back to Events</a>
+            {% else %}
+                <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn">Login to Book</a>
+            {% endif %}
         </div>
     </div>
-</body>
-</html>
+
+    <div class="footer-link">
+        <a href="{% url 'event_list' %}">Back to Events</a>
+    </div>
+{% endblock %}

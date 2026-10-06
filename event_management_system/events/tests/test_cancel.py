@@ -56,9 +56,16 @@ class CancelBookingViewTests(TestCase):
 
     def test_owner_can_cancel(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.url)
+        response = self.client.post(self.url, follow=True)
         self.assertRedirects(response, reverse('my_bookings'))
+        self.assertContains(response, 'Your booking for Tech Talk has been cancelled.')
         self.assertEqual(self.status(), Booking.Status.CANCELLED)
+
+    def test_cancelling_twice_shows_error(self):
+        self.client.force_login(self.user)
+        self.client.post(self.url)
+        response = self.client.post(self.url, follow=True)
+        self.assertContains(response, 'This booking can no longer be cancelled.')
 
     def test_get_not_allowed(self):
         self.client.force_login(self.user)

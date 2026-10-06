@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from .models import Event, Booking, NotEnoughSeats
 from .forms import RegisterForm, EventForm, BookingForm
@@ -31,6 +32,7 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, f'Welcome, {user.username}! Your account has been created.')
             return redirect('event_list')
     else:
         form = RegisterForm()
@@ -65,6 +67,7 @@ def user_login(request):
 
 def user_logout(request):
     logout(request)
+    messages.info(request, 'You have been logged out.')
     return redirect('home')
 
 
@@ -83,7 +86,7 @@ def book_event(request, event_id):
         form = BookingForm(request.POST)
         if form.is_valid():
             try:
-                event.book(request.user, form.cleaned_data['number_of_tickets'])
+                booking = event.book(request.user, form.cleaned_data['number_of_tickets'])
             except NotEnoughSeats:
                 return render(request, 'events/book_event.html', {
                     'form': form,
@@ -91,6 +94,10 @@ def book_event(request, event_id):
                     'error': 'Not enough seats available!'
                 })
 
+            messages.success(
+                request,
+                f'Booked {booking.number_of_tickets} ticket(s) for {event.event_name}.'
+            )
             return redirect('my_bookings')
     else:
         form = BookingForm()
@@ -115,7 +122,10 @@ def my_bookings(request):
 @require_POST
 def cancel_booking(request, booking_id):
     booking = get_object_or_404(Booking.objects.select_related('event'), id=booking_id, user=request.user)
-    booking.cancel()
+    if booking.cancel():
+        messages.success(request, f'Your booking for {booking.event.event_name} has been cancelled.')
+    else:
+        messages.error(request, 'This booking can no longer be cancelled.')
     return redirect('my_bookings')
 
 
@@ -125,8 +135,9 @@ def add_event(request):
     if request.method == 'POST':
         form = EventForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect('event_list')
+            event = form.save()
+            messages.success(request, f'Event "{event.event_name}" has been created.')
+            return redirect('event_detail', event_id=event.id)
     else:
         form = EventForm()
 
