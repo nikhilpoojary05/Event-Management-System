@@ -22,7 +22,9 @@ class Event(models.Model):
         return self.event_name
 
     def booked_seats(self):
-        return self.booking_set.aggregate(total=Sum('number_of_tickets'))['total'] or 0
+        return self.booking_set.filter(status=Booking.Status.BOOKED).aggregate(
+            total=Sum('number_of_tickets')
+        )['total'] or 0
 
     def remaining_seats(self):
         return self.capacity - self.booked_seats()
@@ -47,11 +49,15 @@ class NotEnoughSeats(Exception):
 
 
 class Booking(models.Model):
+    class Status(models.TextChoices):
+        BOOKED = 'Booked', 'Booked'
+        CANCELLED = 'Cancelled', 'Cancelled'
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     booking_date = models.DateTimeField(auto_now_add=True)
     number_of_tickets = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    status = models.CharField(max_length=20, default='Booked')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.BOOKED)
 
     def __str__(self):
         return f"{self.user.username} - {self.event.event_name}"

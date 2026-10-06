@@ -2,6 +2,7 @@ import threading
 import time
 from unittest import mock
 
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
@@ -32,6 +33,19 @@ class SeatAccountingTests(TestCase):
         booking = self.event.book(make_user(), 10)
         self.assertEqual(booking.number_of_tickets, 10)
         self.assertEqual(self.event.remaining_seats(), 0)
+
+    def test_cancelled_bookings_do_not_hold_seats(self):
+        booking = self.event.book(make_user(), 4)
+        booking.status = Booking.Status.CANCELLED
+        booking.save()
+        self.assertEqual(self.event.remaining_seats(), 10)
+
+    def test_status_defaults_to_booked_and_rejects_unknown_values(self):
+        booking = self.event.book(make_user(), 1)
+        self.assertEqual(booking.status, Booking.Status.BOOKED)
+        booking.status = 'Lost'
+        with self.assertRaises(ValidationError):
+            booking.full_clean()
 
     def test_cannot_book_more_than_remaining(self):
         self.event.book(make_user('alice'), 8)
