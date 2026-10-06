@@ -201,6 +201,18 @@ textarea {
     background: #4b5563;
 }
 
+.btn-danger {
+    background: #dc2626;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+}
+
+.card-cancelled {
+    opacity: 0.65;
+}
+
 .message-error {
     background: #fee2e2;
     color: #b91c1c;

@@ -23,11 +23,20 @@
         {% if bookings %}
             <div class="grid">
                 {% for booking in bookings %}
-                    <div class="card">
+                    <div class="card{% if booking.status == booking.Status.CANCELLED %} card-cancelled{% endif %}">
                         <h3>{{ booking.event.event_name }}</h3>
+                        <p><strong>Event Date:</strong> {{ booking.event.date }}, {{ booking.event.time }}</p>
                         <p><strong>Tickets:</strong> {{ booking.number_of_tickets }}</p>
-                        <p><strong>Status:</strong> {{ booking.status }}</p>
+                        <p><strong>Status:</strong> {{ booking.get_status_display }}</p>
                         <p><strong>Booked On:</strong> {{ booking.booking_date }}</p>
+
+                        {% if booking.can_cancel %}
+                            <form method="post" action="{% url 'cancel_booking' booking.id %}" class="actions"
+                                  onsubmit="return confirm('Cancel your booking for {{ booking.event.event_name|escapejs }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">Cancel Booking</button>
+                            </form>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>

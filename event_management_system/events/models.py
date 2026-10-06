@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Sum
+from django.utils import timezone
 from django.contrib.auth.models import User
 
 
@@ -58,6 +59,18 @@ class Booking(models.Model):
     booking_date = models.DateTimeField(auto_now_add=True)
     number_of_tickets = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.BOOKED)
+
+    @property
+    def can_cancel(self):
+        return self.status == self.Status.BOOKED and self.event.date >= timezone.localdate()
+
+    def cancel(self):
+        """Cancel this booking, freeing its seats. Returns False if not allowed."""
+        if not self.can_cancel:
+            return False
+        self.status = self.Status.CANCELLED
+        self.save(update_fields=['status'])
+        return True
 
     def __str__(self):
         return f"{self.user.username} - {self.event.event_name}"

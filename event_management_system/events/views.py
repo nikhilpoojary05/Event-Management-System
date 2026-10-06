@@ -4,6 +4,7 @@ from .models import Event, Booking, NotEnoughSeats
 from .forms import RegisterForm, EventForm, BookingForm
 from django.contrib.auth import login, authenticate, logout
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 
 def home(request):
@@ -102,8 +103,20 @@ def book_event(request, event_id):
 
 @login_required
 def my_bookings(request):
-    bookings = Booking.objects.filter(user=request.user)
+    bookings = (
+        Booking.objects.filter(user=request.user)
+        .select_related('event')
+        .order_by('-booking_date')
+    )
     return render(request, 'events/my_bookings.html', {'bookings': bookings})
+
+
+@login_required
+@require_POST
+def cancel_booking(request, booking_id):
+    booking = get_object_or_404(Booking.objects.select_related('event'), id=booking_id, user=request.user)
+    booking.cancel()
+    return redirect('my_bookings')
 
 
 @login_required
