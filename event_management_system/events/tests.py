@@ -116,3 +116,33 @@ class MarkupTests(TestCase):
         self.assertIn('type="date"', html)
         self.assertIn(f'min="{timezone.localdate().isoformat()}"', html)
         self.assertIn('type="time"', html)
+
+
+class LoginRedirectTests(TestCase):
+    def setUp(self):
+        User.objects.create_user('alice', password='pw-for-tests-123')
+        self.creds = {'username': 'alice', 'password': 'pw-for-tests-123'}
+
+    def test_redirects_to_next(self):
+        target = reverse('my_bookings')
+        response = self.client.post(reverse('login'), {**self.creds, 'next': target})
+        self.assertRedirects(response, target)
+
+    def test_defaults_to_event_list(self):
+        response = self.client.post(reverse('login'), self.creds)
+        self.assertRedirects(response, reverse('event_list'))
+
+    def test_ignores_external_next(self):
+        response = self.client.post(reverse('login'), {**self.creds, 'next': 'https://evil.example.com/'})
+        self.assertRedirects(response, reverse('event_list'))
+
+    def test_next_carried_through_login_form(self):
+        target = reverse('my_bookings')
+        response = self.client.get(reverse('login'), {'next': target})
+        self.assertContains(response, f'name="next" value="{target}"')
+
+    def test_failed_login_keeps_next(self):
+        target = reverse('my_bookings')
+        response = self.client.post(reverse('login'), {'username': 'alice', 'password': 'wrong', 'next': target})
+        self.assertContains(response, 'Invalid username or password')
+        self.assertContains(response, f'name="next" value="{target}"')

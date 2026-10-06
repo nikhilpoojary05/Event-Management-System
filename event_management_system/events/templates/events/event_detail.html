@@ -43,7 +43,7 @@
                         <button class="btn btn-secondary" disabled>Booking Closed</button>
                     {% endif %}
                 {% else %}
-                    <a href="{% url 'login' %}" class="btn">Login to Book</a>
+                    <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn">Login to Book</a>
                 {% endif %}
             </div>
         </div>

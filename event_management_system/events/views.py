@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from .models import Event, Booking
 from .forms import RegisterForm, EventForm, BookingForm
 from django.contrib.auth import login, authenticate, logout
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 def home(request):
@@ -42,6 +43,12 @@ def register(request):
 
 
 def user_login(request):
+    next_url = request.POST.get('next') or request.GET.get('next', '')
+    if not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        next_url = ''
+
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -50,13 +57,14 @@ def user_login(request):
 
         if user is not None:
             login(request, user)
-            return redirect('event_list')
+            return redirect(next_url or 'event_list')
         else:
             return render(request, 'events/login.html', {
-                'error': 'Invalid username or password'
+                'error': 'Invalid username or password',
+                'next': next_url
             })
 
-    return render(request, 'events/login.html')
+    return render(request, 'events/login.html', {'next': next_url})
 
 
 def user_logout(request):

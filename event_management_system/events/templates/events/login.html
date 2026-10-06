@@ -27,6 +27,9 @@
 
             <form method="post">
                 {% csrf_token %}
+                {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
                 <p>
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required>
