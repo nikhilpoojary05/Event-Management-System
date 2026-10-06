@@ -99,3 +99,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 LOGIN_URL = 'login'
+
+TEST_RUNNER = 'event_management_system.test_runner.FastTestRunner'
