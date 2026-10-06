@@ -100,3 +100,19 @@ class AddEventPermissionTests(TestCase):
         self.client.force_login(user)
         self.assertEqual(self.client.get(self.url).status_code, 200)
         self.assertContains(self.client.get(reverse('event_list')), 'Add Event')
+
+
+class MarkupTests(TestCase):
+    def test_pages_have_viewport_and_lang(self):
+        event = make_event()
+        for url in (reverse('home'), reverse('event_list'), reverse('event_detail', args=[event.id]),
+                    reverse('login'), reverse('register')):
+            response = self.client.get(url)
+            self.assertContains(response, 'name="viewport"')
+            self.assertContains(response, '<html lang="en">')
+
+    def test_event_form_uses_native_date_and_time_inputs(self):
+        html = str(EventForm())
+        self.assertIn('type="date"', html)
+        self.assertIn(f'min="{timezone.localdate().isoformat()}"', html)
+        self.assertIn('type="time"', html)

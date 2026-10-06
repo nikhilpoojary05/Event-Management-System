@@ -16,6 +16,14 @@ class EventForm(forms.ModelForm):
     class Meta:
         model = Event
         fields = ['event_name', 'description', 'date', 'time', 'venue', 'capacity', 'price']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'time': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['date'].widget.attrs['min'] = timezone.localdate().isoformat()
 
     def clean_date(self):
         date = self.cleaned_data['date']
