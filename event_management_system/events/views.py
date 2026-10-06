@@ -1,9 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from .models import Event, Booking
 from .forms import RegisterForm, EventForm, BookingForm
 from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.decorators import login_required
 
 
 def home(request):
@@ -117,6 +116,7 @@ def my_bookings(request):
 
 
 @login_required
+@permission_required('events.add_event', raise_exception=True)
 def add_event(request):
     if request.method == 'POST':
         form = EventForm(request.POST)

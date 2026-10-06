@@ -1,6 +1,6 @@
 from datetime import time, timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -79,3 +79,24 @@ class BookingValidationTests(TestCase):
 
         self.assertEqual(Booking.objects.filter(event=self.event).count(), 1)
         self.assertContains(response, 'This event is full')
+
+
+class AddEventPermissionTests(TestCase):
+    def setUp(self):
+        self.url = reverse('add_event')
+
+    def test_anonymous_redirected_to_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f"{reverse('login')}?next={self.url}")
+
+    def test_regular_user_forbidden(self):
+        self.client.force_login(User.objects.create_user('bob', password='pw-for-tests-123'))
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.assertNotContains(self.client.get(reverse('event_list')), 'Add Event')
+
+    def test_user_with_permission_can_add(self):
+        user = User.objects.create_user('org', password='pw-for-tests-123')
+        user.user_permissions.add(Permission.objects.get(codename='add_event'))
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertContains(self.client.get(reverse('event_list')), 'Add Event')
