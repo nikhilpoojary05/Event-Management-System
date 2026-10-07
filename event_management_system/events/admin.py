@@ -1,22 +1,28 @@
 from django.contrib import admin
-from .models import Instructor, Student, Course
+
+from .models import Booking, Event
 
 
-@admin.register(Instructor)
-class InstructorAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'email', 'experience')
-    search_fields = ('name', 'email')
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ('event_name', 'date', 'time', 'venue', 'capacity', 'seats_left', 'price')
+    list_filter = ('date', 'venue')
+    search_fields = ('event_name', 'venue', 'description')
+    date_hierarchy = 'date'
+    ordering = ('-date', '-time')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).with_seat_counts()
+
+    @admin.display(description='Seats left', ordering='seats_left')
+    def seats_left(self, event):
+        return event.seats_left
 
 
-@admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'age', 'email', 'enrollment_year', 'enrollment_date')
-    search_fields = ('name', 'email')
-    list_filter = ('enrollment_year',)
-
-
-@admin.register(Course)
-class CourseAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'instructor')
-    search_fields = ('title', 'instructor__name')
-    filter_horizontal = ('students',)
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ('user', 'event', 'number_of_tickets', 'status', 'booking_date')
+    list_filter = ('status', 'event')
+    search_fields = ('user__username', 'user__email', 'event__event_name')
+    list_select_related = ('user', 'event')
+    ordering = ('-booking_date',)

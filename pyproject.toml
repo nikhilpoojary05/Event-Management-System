@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["venv", "*/migrations/*"]
+
+[tool.ruff.lint]
+# pycodestyle errors/warnings, pyflakes, import sorting, bugbear, Django
+select = ["E", "W", "F", "I", "B", "DJ"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["events", "event_management_system"]

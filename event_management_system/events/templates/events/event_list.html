@@ -1,53 +1,59 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Events</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'events/style.css' %}">
-</head>
-<body>
-    <div class="container">
-        <div class="navbar">
-            <h1>Event Management</h1>
-            <div class="nav-links">
-                <a href="{% url 'home' %}">Home</a>
-                <a href="{% url 'event_list' %}">Events</a>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'my_bookings' %}">My Bookings</a>
-                    <a href="{% url 'add_event' %}">Add Event</a>
-                    <a href="{% url 'logout' %}">Logout</a>
-                {% else %}
-                    <a href="{% url 'login' %}">Login</a>
-                    <a href="{% url 'register' %}">Register</a>
-                {% endif %}
-            </div>
+{% extends 'events/base.html' %}
+
+{% block title %}{% if show_past %}Past Events{% else %}Events{% endif %}{% endblock %}
+
+{% block content %}
+    <h2 class="page-title">{% if show_past %}Past Events{% else %}Upcoming Events{% endif %}</h2>
+
+    {% if user.is_authenticated %}
+        <div class="info-bar">
+            Welcome, <strong>{{ user.username }}</strong>
         </div>
+    {% endif %}
 
-        <h2 class="page-title">Available Events</h2>
+    <nav class="tabs" aria-label="Event timeframe">
+        <a href="{% url 'event_list' %}"{% if not show_past %} aria-current="page"{% endif %}>Upcoming</a>
+        <a href="{% url 'event_list' %}?when=past"{% if show_past %} aria-current="page"{% endif %}>Past</a>
+    </nav>
 
-        {% if user.is_authenticated %}
-            <div class="info-bar">
-                Welcome, <strong>{{ user.username }}</strong>
-            </div>
-        {% endif %}
+    {% for event in events %}
+        <div class="card">
+            <h3>
+                {{ event.event_name }}
+                {% if not show_past %}
+                    {% if event.seats_left <= 0 %}
+                        <span class="badge badge-soldout">Sold out</span>
+                    {% elif event.seats_left <= 5 %}
+                        <span class="badge badge-low">Only {{ event.seats_left }} left</span>
+                    {% endif %}
+                {% endif %}
+            </h3>
+            <p><strong>Description:</strong> {{ event.description|truncatewords:30 }}</p>
+            <p><strong>Date:</strong> {{ event.date }}</p>
+            <p><strong>Time:</strong> {{ event.time }}</p>
+            <p><strong>Venue:</strong> {{ event.venue }}</p>
+            {% if not show_past %}
+                <p><strong>Seats Left:</strong> {{ event.seats_left }} of {{ event.capacity }}</p>
+            {% endif %}
+            <p><strong>Price:</strong> ₹{{ event.price }}</p>
 
-        {% for event in events %}
-            <div class="card">
-                <h3>{{ event.event_name }}</h3>
-                <p><strong>Description:</strong> {{ event.description }}</p>
-                <p><strong>Date:</strong> {{ event.date }}</p>
-                <p><strong>Time:</strong> {{ event.time }}</p>
-                <p><strong>Venue:</strong> {{ event.venue }}</p>
-                <p><strong>Capacity:</strong> {{ event.capacity }}</p>
-                <p><strong>Price:</strong> ₹{{ event.price }}</p>
+            <a href="{% url 'event_detail' event.id %}" class="btn">View Details</a>
+        </div>
+    {% empty %}
+        <div class="card">
+            <p>{% if show_past %}No past events.{% else %}No upcoming events.{% endif %}</p>
+        </div>
+    {% endfor %}
 
-                <a href="{% url 'event_detail' event.id %}" class="btn">View Details</a>
-            </div>
-        {% empty %}
-            <div class="card">
-                <p>No events available.</p>
-            </div>
-        {% endfor %}
-    </div>
-</body>
-</html>
+    {% if page.paginator.num_pages > 1 %}
+        <nav class="pagination" aria-label="Pages">
+            {% if page.has_previous %}
+                <a href="?{% if show_past %}when=past&amp;{% endif %}page={{ page.previous_page_number }}" class="btn btn-secondary">&larr; Previous</a>
+            {% endif %}
+            <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+            {% if page.has_next %}
+                <a href="?{% if show_past %}when=past&amp;{% endif %}page={{ page.next_page_number }}" class="btn btn-secondary">Next &rarr;</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% endblock %}

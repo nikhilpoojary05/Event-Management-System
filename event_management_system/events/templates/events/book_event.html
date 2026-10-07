@@ -1,43 +1,27 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Book Event</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'events/style.css' %}">
-</head>
-<body>
-    <div class="container">
-        <div class="navbar">
-            <h1>Event Management</h1>
-            <div class="nav-links">
-                <a href="{% url 'home' %}">Home</a>
-                <a href="{% url 'event_list' %}">Events</a>
-                <a href="{% url 'my_bookings' %}">My Bookings</a>
-                <a href="{% url 'logout' %}">Logout</a>
-            </div>
-        </div>
+{% extends 'events/base.html' %}
 
-        <h2 class="page-title">Book Event: {{ event.event_name }}</h2>
+{% block title %}Book {{ event.event_name }}{% endblock %}
 
-        <div class="form-card">
-            {% if error %}
-                <div class="message-error">{{ error }}</div>
-            {% endif %}
+{% block content %}
+    <h2 class="page-title">Book Event: {{ event.event_name }}</h2>
 
-            {% if form %}
-                <form method="post">
-                    {% csrf_token %}
-                    {{ form.as_p }}
-                    <button type="submit" class="btn">Confirm Booking</button>
-                </form>
-            {% else %}
-                <div class="message-error">Booking is not available for this event.</div>
-            {% endif %}
-        </div>
+    <div class="form-card">
+        {% if error %}
+            <div class="message-error">{{ error }}</div>
+        {% endif %}
 
-        <div class="footer-link">
-            <a href="{% url 'event_detail' event.id %}">Back to Event Detail</a>
-        </div>
+        {% if form %}
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn">Confirm Booking</button>
+            </form>
+        {% else %}
+            <div class="message-error">Booking is not available for this event.</div>
+        {% endif %}
     </div>
-</body>
-</html>
+
+    <div class="footer-link">
+        <a href="{% url 'event_detail' event.id %}">Back to Event Detail</a>
+    </div>
+{% endblock %}

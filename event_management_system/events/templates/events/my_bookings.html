@@ -1,39 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>My Bookings</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'events/style.css' %}">
-</head>
-<body>
-    <div class="container">
-        <div class="navbar">
-            <h1>Event Management</h1>
-            <div class="nav-links">
-                <a href="{% url 'home' %}">Home</a>
-                <a href="{% url 'event_list' %}">Events</a>
-                <a href="{% url 'logout' %}">Logout</a>
-            </div>
+{% extends 'events/base.html' %}
+
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+    <h2 class="page-title">My Bookings</h2>
+
+    {% if bookings %}
+        <div class="grid">
+            {% for booking in bookings %}
+                <div class="card{% if booking.status == booking.Status.CANCELLED %} card-cancelled{% endif %}">
+                    <h3>{{ booking.event.event_name }}</h3>
+                    <p><strong>Event Date:</strong> {{ booking.event.date }}, {{ booking.event.time }}</p>
+                    <p><strong>Tickets:</strong> {{ booking.number_of_tickets }}</p>
+                    <p><strong>Status:</strong> {{ booking.get_status_display }}</p>
+                    <p><strong>Booked On:</strong> {{ booking.booking_date }}</p>
+
+                    {% if booking.can_cancel %}
+                        <form method="post" action="{% url 'cancel_booking' booking.id %}" class="actions"
+                              onsubmit="return confirm('Cancel your booking for {{ booking.event.event_name|escapejs }}?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Cancel Booking</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
-
-        <h2 class="page-title">My Bookings</h2>
-
-        {% if bookings %}
-            <div class="grid">
-                {% for booking in bookings %}
-                    <div class="card">
-                        <h3>{{ booking.event.event_name }}</h3>
-                        <p><strong>Tickets:</strong> {{ booking.number_of_tickets }}</p>
-                        <p><strong>Status:</strong> {{ booking.status }}</p>
-                        <p><strong>Booked On:</strong> {{ booking.booking_date }}</p>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="empty-state">
-                <p>You have no bookings yet.</p>
-            </div>
-        {% endif %}
-    </div>
-</body>
-</html>
+    {% else %}
+        <div class="empty-state">
+            <p>You have no bookings yet.</p>
+        </div>
+    {% endif %}
+{% endblock %}

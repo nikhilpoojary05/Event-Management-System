@@ -58,6 +58,11 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # SQLite ignores select_for_update(); IMMEDIATE makes each transaction
+        # take the write lock up front so concurrent bookings are serialized.
+        'OPTIONS': {'transaction_mode': 'IMMEDIATE'},
+        # File-based test DB so concurrency tests can use real separate connections.
+        'TEST': {'NAME': BASE_DIR / 'test_db.sqlite3'},
     }
 }
 
@@ -94,3 +99,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 LOGIN_URL = 'login'
+
+TEST_RUNNER = 'event_management_system.test_runner.FastTestRunner'

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Home{% endblock %} | Event Management</title>
+    <link rel="stylesheet" href="{% static 'events/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <header class="navbar">
+            <h1>Event Management</h1>
+            {% with current=request.resolver_match.url_name %}
+            <nav class="nav-links" aria-label="Main">
+                <a href="{% url 'home' %}"{% if current == 'home' %} aria-current="page"{% endif %}>Home</a>
+                <a href="{% url 'event_list' %}"{% if current == 'event_list' %} aria-current="page"{% endif %}>Events</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'my_bookings' %}"{% if current == 'my_bookings' %} aria-current="page"{% endif %}>My Bookings</a>
+                    {% if perms.events.add_event %}
+                        <a href="{% url 'add_event' %}"{% if current == 'add_event' %} aria-current="page"{% endif %}>Add Event</a>
+                    {% endif %}
+                    <a href="{% url 'logout' %}">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}"{% if current == 'login' %} aria-current="page"{% endif %}>Login</a>
+                    <a href="{% url 'register' %}"{% if current == 'register' %} aria-current="page"{% endif %}>Register</a>
+                {% endif %}
+            </nav>
+            {% endwith %}
+        </header>
+
+        <main>
+            {% if messages %}
+                <div class="messages" role="status">
+                    {% for message in messages %}
+                        <div class="message-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

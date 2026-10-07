@@ -1,97 +1,110 @@
-from django.db import models
+from decimal import Decimal
+
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
+from django.db import models, transaction
+from django.db.models import F, Q, Sum
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 
-# ===============================
-# Instructor Model
-# ===============================
-class Instructor(models.Model):
-    name = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-    experience = models.PositiveIntegerField(help_text="Experience in years")
+class EventQuerySet(models.QuerySet):
+    def upcoming(self):
+        return self.filter(date__gte=timezone.localdate()).order_by('date', 'time')
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    def past(self):
+        return self.filter(date__lt=timezone.localdate()).order_by('-date', '-time')
 
-    def __str__(self):
-        return f"{self.name} ({self.experience} yrs)"
-
-    class Meta:
-        ordering = ['name']
-
-
-# ===============================
-# Student Model
-# ===============================
-class Student(models.Model):
-    name = models.CharField(max_length=100)
-    age = models.PositiveIntegerField()
-    email = models.EmailField(unique=True)
-    enrollment_year = models.PositiveIntegerField()
-    enrollment_date = models.DateField()
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.name} - {self.email}"
-
-    class Meta:
-        ordering = ['name']
+    def with_seat_counts(self):
+        """Annotate booked_count and seats_left in the same query."""
+        return self.annotate(
+            booked_count=Coalesce(
+                Sum('booking__number_of_tickets', filter=Q(booking__status=Booking.Status.BOOKED)), 0
+            ),
+            seats_left=F('capacity') - F('booked_count'),
+        )
 
 
-# ===============================
-# Course Model
-# ===============================
-class Course(models.Model):
-    title = models.CharField(max_length=100)
-    description = models.TextField()
-
-    instructor = models.ForeignKey(
-        Instructor,
-        on_delete=models.CASCADE,
-        related_name='courses'
-    )
-
-    students = models.ManyToManyField(
-        Student,
-        related_name='courses',
-        blank=True
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.title
-
-    # 🔥 Extra helper method
-    def total_students(self):
-        return self.students.count()
-
-    class Meta:
-        ordering = ['title']
-
-
-# ===============================
-# Event Management Models
-# ===============================
 class Event(models.Model):
     event_name = models.CharField(max_length=200)
     description = models.TextField()
     date = models.DateField()
     time = models.TimeField()
     venue = models.CharField(max_length=200)
-    capacity = models.IntegerField()
-    price = models.DecimalField(max_digits=8, decimal_places=2, default=0.0)
+    capacity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    price = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    objects = EventQuerySet.as_manager()
 
     def __str__(self):
         return self.event_name
 
+    @property
+    def is_past(self):
+        return self.date < timezone.localdate()
+
+    def booked_seats(self):
+        return self.booking_set.filter(status=Booking.Status.BOOKED).aggregate(
+            total=Sum('number_of_tickets')
+        )['total'] or 0
+
+    def remaining_seats(self):
+        return self.capacity - self.booked_seats()
+
+    def book(self, user, number_of_tickets):
+        """Create a booking, or raise EventInPast / NotEnoughSeats.
+
+        The seat check and insert run in one transaction with the event row
+        locked, so concurrent requests can't both take the last seats.
+        """
+        with transaction.atomic():
+            event = Event.objects.select_for_update().get(pk=self.pk)
+            if event.is_past:
+                raise EventInPast
+            if number_of_tickets > event.remaining_seats():
+                raise NotEnoughSeats
+            return Booking.objects.create(
+                user=user, event=event, number_of_tickets=number_of_tickets
+            )
+
+
+class BookingError(Exception):
+    pass
+
+
+class NotEnoughSeats(BookingError):
+    pass
+
+
+class EventInPast(BookingError):
+    pass
+
 
 class Booking(models.Model):
+    class Status(models.TextChoices):
+        BOOKED = 'Booked', 'Booked'
+        CANCELLED = 'Cancelled', 'Cancelled'
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     booking_date = models.DateTimeField(auto_now_add=True)
-    number_of_tickets = models.IntegerField(default=1)
-    status = models.CharField(max_length=20, default='Booked')
+    number_of_tickets = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.BOOKED)
 
     def __str__(self):
-        return f"{self.user.username} - {self.event.event_name} ({self.number_of_tickets})"
+        return f"{self.user.username} - {self.event.event_name}"
+
+    @property
+    def can_cancel(self):
+        return self.status == self.Status.BOOKED and not self.event.is_past
+
+    def cancel(self):
+        """Cancel this booking, freeing its seats. Returns False if not allowed."""
+        if not self.can_cancel:
+            return False
+        self.status = self.Status.CANCELLED
+        self.save(update_fields=['status'])
+        return True
