@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Event, Booking
+
+from .models import Booking, Event
 
 
 @admin.register(Event)

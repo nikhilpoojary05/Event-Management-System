@@ -1,12 +1,13 @@
-from django.core.paginator import Paginator
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, permission_required
-from .models import Event, Booking, EventInPast, NotEnoughSeats
-from .forms import RegisterForm, EventForm, BookingForm
-from django.contrib.auth import login, authenticate, logout
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+
+from .forms import BookingForm, EventForm, RegisterForm
+from .models import Booking, Event, EventInPast, NotEnoughSeats
 
 
 def home(request):

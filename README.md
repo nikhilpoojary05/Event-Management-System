@@ -1,5 +1,7 @@
 # 🎉 Event Management System
 
+[![CI](https://github.com/nikhilpoojary05/Event-Management-System/actions/workflows/ci.yml/badge.svg)](https://github.com/nikhilpoojary05/Event-Management-System/actions/workflows/ci.yml)
+
 ## 📌 Overview
 A Django web application for browsing, booking, and managing events online. Attendees can book and cancel tickets with live seat availability; organizers can publish new events.
 
@@ -52,19 +54,33 @@ Open http://127.0.0.1:8000 in your browser. The admin panel is at http://127.0.0
 - **Attendees** register on the site and can book and cancel tickets.
 - **Organizers** can add events. Superusers are organizers automatically. To make another user an organizer, open their account in the admin panel and give them the **events | event | Can add event** permission.
 
-## 🧪 Running Tests
+## 🧪 Development
 
-From the `event_management_system` folder:
+Install the development tools (includes the [ruff](https://docs.astral.sh/ruff/) linter):
 
 ```bash
+pip install -r requirements-dev.txt
+```
+
+Run the linter from the repository root, and the tests from the `event_management_system` folder:
+
+```bash
+ruff check .
+ruff check . --fix   # auto-fix import order, etc.
+cd event_management_system
 python manage.py test events
 ```
+
+GitHub Actions runs the linter, Django system checks, a migrations check, and the test suite on every push to `main` and on every pull request (see `.github/workflows/ci.yml`).
 
 ## 📁 Project Structure
 
 ```
 Event-Management-System/
-├── requirements.txt
+├── requirements.txt               # runtime dependencies
+├── requirements-dev.txt           # + development tools
+├── pyproject.toml                 # ruff configuration
+├── .github/workflows/ci.yml       # CI pipeline
 └── event_management_system/
     ├── manage.py
     ├── event_management_system/   # project settings and URLs

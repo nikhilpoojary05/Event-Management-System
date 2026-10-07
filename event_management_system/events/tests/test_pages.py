@@ -55,7 +55,7 @@ class EventListTests(TestCase):
             make_event(event_name=f'Event {i:02d}', date=timezone.localdate() + timedelta(days=i + 1))
         first = self.client.get(self.url)
         self.assertEqual(len(first.context['events']), EVENTS_PER_PAGE)
-        self.assertContains(first, f'Page 1 of 2')
+        self.assertContains(first, 'Page 1 of 2')
         self.assertContains(first, 'href="?page=2"')
         second = self.client.get(self.url, {'page': 2})
         self.assertEqual(self.names(second), ['Event 10', 'Event 11', 'Event 12'])

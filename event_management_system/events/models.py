@@ -1,11 +1,11 @@
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import F, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from django.contrib.auth.models import User
 
 
 class EventQuerySet(models.QuerySet):
@@ -94,6 +94,9 @@ class Booking(models.Model):
     number_of_tickets = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.BOOKED)
 
+    def __str__(self):
+        return f"{self.user.username} - {self.event.event_name}"
+
     @property
     def can_cancel(self):
         return self.status == self.Status.BOOKED and not self.event.is_past
@@ -105,6 +108,3 @@ class Booking(models.Model):
         self.status = self.Status.CANCELLED
         self.save(update_fields=['status'])
         return True
-
-    def __str__(self):
-        return f"{self.user.username} - {self.event.event_name}"

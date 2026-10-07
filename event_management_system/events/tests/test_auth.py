@@ -138,6 +138,7 @@ class AddEventPermissionTests(TestCase):
 class TestRunnerTests(TestCase):
     def test_suite_uses_fast_hasher_but_production_settings_do_not(self):
         from django.conf import settings
+
         from event_management_system import settings as project_settings
         self.assertEqual(settings.PASSWORD_HASHERS, ['django.contrib.auth.hashers.MD5PasswordHasher'])
         self.assertFalse(hasattr(project_settings, 'PASSWORD_HASHERS'))
