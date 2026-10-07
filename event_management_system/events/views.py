@@ -77,6 +77,7 @@ def user_login(request):
     return render(request, 'events/login.html', {'next': next_url})
 
 
+@require_POST
 def user_logout(request):
     logout(request)
     messages.info(request, 'You have been logged out.')

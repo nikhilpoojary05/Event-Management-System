@@ -20,7 +20,10 @@
                     {% if perms.events.add_event %}
                         <a href="{% url 'add_event' %}"{% if current == 'add_event' %} aria-current="page"{% endif %}>Add Event</a>
                     {% endif %}
-                    <a href="{% url 'logout' %}">Logout</a>
+                    <form method="post" action="{% url 'logout' %}" class="nav-form">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-button">Logout</button>
+                    </form>
                 {% else %}
                     <a href="{% url 'login' %}"{% if current == 'login' %} aria-current="page"{% endif %}>Login</a>
                     <a href="{% url 'register' %}"{% if current == 'register' %} aria-current="page"{% endif %}>Register</a>

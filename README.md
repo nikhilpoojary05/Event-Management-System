@@ -94,5 +94,32 @@ Event-Management-System/
         └── tests/                 # test suite
 ```
 
-## ⚠️ Production Note
-`settings.py` currently has a hard-coded `SECRET_KEY` and `DEBUG = True`, which are only suitable for local development. Change these before deploying.
+## 🌐 Deploying to Production
+
+Locally the app needs no configuration: it runs in debug mode with a development-only secret key. In production, configure it with environment variables:
+
+| Variable | Required | Description |
+|---|---|---|
+| `DJANGO_DEBUG` | yes | Set to `False`. This also enables secure cookies, HTTPS redirect and HSTS. |
+| `DJANGO_SECRET_KEY` | yes | A long random string. The app refuses to start without it when `DJANGO_DEBUG=False`. |
+| `DJANGO_ALLOWED_HOSTS` | yes | Comma-separated domain names, e.g. `example.com,www.example.com`. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | if needed | Comma-separated origins with scheme, e.g. `https://example.com`. |
+| `DJANGO_BEHIND_HTTPS_PROXY` | if needed | `True` when a proxy/load balancer terminates HTTPS and sets `X-Forwarded-Proto`. |
+| `DJANGO_SECURE_SSL_REDIRECT` | no | Defaults to `True`; set `False` if your host already redirects to HTTPS. |
+| `DJANGO_SECURE_HSTS_SECONDS` | no | HSTS duration; defaults to 30 days. |
+| `DJANGO_SECURE_HSTS_PRELOAD` | no | Defaults to `False`. Only enable once HTTPS is permanent, as it is hard to undo. |
+
+Generate a secret key with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+Then collect static files and verify the configuration:
+
+```bash
+python manage.py collectstatic
+python manage.py check --deploy
+```
+
+> SQLite works for small deployments. For more traffic, switch `DATABASES` to PostgreSQL.

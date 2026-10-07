@@ -54,6 +54,26 @@ body {
     background: rgba(255, 255, 255, 0.18);
 }
 
+.nav-form {
+    display: contents;
+}
+
+.nav-button {
+    color: white;
+    background: none;
+    border: none;
+    font: inherit;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.nav-button:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
 .nav-links a[aria-current="page"] {
     background: rgba(255, 255, 255, 0.25);
 }
