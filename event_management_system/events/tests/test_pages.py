@@ -168,7 +168,7 @@ class LayoutTests(TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertContains(response, f'href="{reverse("my_bookings")}"')
-                self.assertContains(response, f'href="{reverse("logout")}"')
+                self.assertContains(response, f'action="{reverse("logout")}"')
                 self.assertNotContains(response, f'href="{reverse("add_event")}"')
 
     def test_current_page_marked_in_nav(self):

@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -78,10 +78,29 @@ class LoginTests(TestCase):
 class LogoutTests(TestCase):
     def test_logout_ends_session(self):
         self.client.force_login(make_user())
-        response = self.client.get(reverse('logout'), follow=True)
+        response = self.client.post(reverse('logout'), follow=True)
         self.assertRedirects(response, reverse('home'))
         self.assertContains(response, 'You have been logged out.')
         self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_get_does_not_log_out(self):
+        # A link or <img> on another site can trigger a GET, so GET must not log the user out.
+        self.client.force_login(make_user())
+        self.assertEqual(self.client.get(reverse('logout')).status_code, 405)
+        self.assertIn('_auth_user_id', self.client.session)
+
+    def test_logout_requires_csrf_token(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(make_user())
+        self.assertEqual(client.post(reverse('logout')).status_code, 403)
+        self.assertIn('_auth_user_id', client.session)
+
+    def test_nav_logout_is_a_csrf_protected_form(self):
+        self.client.force_login(make_user())
+        response = self.client.get(reverse('home'))
+        self.assertContains(response, f'<form method="post" action="{reverse("logout")}" class="nav-form">')
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertNotContains(response, f'href="{reverse("logout")}"')
 
 
 class AddEventPermissionTests(TestCase):
