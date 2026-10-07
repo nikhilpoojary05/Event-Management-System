@@ -67,7 +67,7 @@ class Event(models.Model):
             if number_of_tickets > event.remaining_seats():
                 raise NotEnoughSeats
             return Booking.objects.create(
-                user=user, event=event, number_of_tickets=number_of_tickets
+                user=user, event=event, number_of_tickets=number_of_tickets, unit_price=event.price
             )
 
 
@@ -93,9 +93,18 @@ class Booking(models.Model):
     booking_date = models.DateTimeField(auto_now_add=True)
     number_of_tickets = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.BOOKED)
+    # Ticket price when booked, so later changes to the event's price don't alter past bookings.
+    unit_price = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
 
     def __str__(self):
         return f"{self.user.username} - {self.event.event_name}"
+
+    @property
+    def total_price(self):
+        return self.unit_price * self.number_of_tickets
 
     @property
     def can_cancel(self):

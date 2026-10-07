@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import BookingForm, EventForm, RegisterForm
 from .models import Booking, Event, EventInPast, NotEnoughSeats
+from .templatetags.events_extras import price
 
 
 def home(request):
@@ -88,49 +89,45 @@ def user_logout(request):
 def book_event(request, event_id):
     event = get_object_or_404(Event, id=event_id)
 
-    if event.is_past:
-        return render(request, 'events/book_event.html', {
-            'event': event,
-            'form': None,
-            'error': 'This event has already taken place.'
-        })
+    def closed(error):
+        return render(request, 'events/book_event.html', {'event': event, 'form': None, 'error': error})
 
-    if event.remaining_seats() <= 0:
-        return render(request, 'events/book_event.html', {
-            'event': event,
-            'form': None,
-            'error': 'This event is full. Booking is closed.'
-        })
+    if event.is_past:
+        return closed('This event has already taken place.')
+
+    remaining_seats = event.remaining_seats()
+    if remaining_seats <= 0:
+        return closed('This event is full. Booking is closed.')
 
     if request.method == 'POST':
-        form = BookingForm(request.POST)
+        form = BookingForm(request.POST, max_tickets=remaining_seats)
         if form.is_valid():
             try:
                 booking = event.book(request.user, form.cleaned_data['number_of_tickets'])
             except NotEnoughSeats:
-                return render(request, 'events/book_event.html', {
-                    'form': form,
-                    'event': event,
-                    'error': 'Not enough seats available!'
-                })
+                form.add_error(None, 'Not enough seats available!')
             except EventInPast:
-                return render(request, 'events/book_event.html', {
-                    'event': event,
-                    'form': None,
-                    'error': 'This event has already taken place.'
-                })
-
-            messages.success(
-                request,
-                f'Booked {booking.number_of_tickets} ticket(s) for {event.event_name}.'
-            )
-            return redirect('my_bookings')
+                return closed('This event has already taken place.')
+            else:
+                messages.success(
+                    request,
+                    f'Booked {booking.number_of_tickets} ticket(s) for {event.event_name}. '
+                    f'Total: {price(booking.total_price)}.'
+                )
+                return redirect('my_bookings')
     else:
-        form = BookingForm()
+        form = BookingForm(max_tickets=remaining_seats)
+
+    try:
+        tickets = max(int(form['number_of_tickets'].value()), 1)
+    except (TypeError, ValueError):
+        tickets = 1
 
     return render(request, 'events/book_event.html', {
         'form': form,
-        'event': event
+        'event': event,
+        'remaining_seats': remaining_seats,
+        'total': event.price * tickets,
     })
 
 

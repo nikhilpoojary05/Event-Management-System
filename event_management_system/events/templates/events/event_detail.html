@@ -1,4 +1,5 @@
 {% extends 'events/base.html' %}
+{% load events_extras %}
 
 {% block title %}{{ event.event_name }}{% endblock %}
 
@@ -12,7 +13,7 @@
         <p><strong>Venue:</strong> {{ event.venue }}</p>
         <p><strong>Total Capacity:</strong> {{ event.capacity }}</p>
         <p><strong>Available Seats:</strong> {{ remaining_seats }}</p>
-        <p><strong>Price:</strong> ₹{{ event.price }}</p>
+        <p><strong>Price:</strong> {{ event.price|price }}</p>
 
         <div class="actions">
             {% if event.is_past %}

@@ -322,6 +322,25 @@ textarea {
     color: #1d4ed8;
 }
 
+.summary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.summary dt {
+    font-weight: 600;
+    color: #374151;
+}
+
+.summary-total {
+    font-size: 18px;
+    margin: 4px 0 18px;
+}
+
 .actions {
     margin-top: 18px;
     display: flex;

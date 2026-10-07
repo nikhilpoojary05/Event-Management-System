@@ -1,4 +1,5 @@
 {% extends 'events/base.html' %}
+{% load events_extras %}
 
 {% block title %}My Bookings{% endblock %}
 
@@ -11,7 +12,8 @@
                 <div class="card{% if booking.status == booking.Status.CANCELLED %} card-cancelled{% endif %}">
                     <h3>{{ booking.event.event_name }}</h3>
                     <p><strong>Event Date:</strong> {{ booking.event.date }}, {{ booking.event.time }}</p>
-                    <p><strong>Tickets:</strong> {{ booking.number_of_tickets }}</p>
+                    <p><strong>Tickets:</strong> {{ booking.number_of_tickets }} &times; {{ booking.unit_price|price }}</p>
+                    <p><strong>Total:</strong> {{ booking.total_price|price }}</p>
                     <p><strong>Status:</strong> {{ booking.get_status_display }}</p>
                     <p><strong>Booked On:</strong> {{ booking.booking_date }}</p>
 
