@@ -47,3 +47,41 @@ class BookingForm(forms.ModelForm):
         if max_tickets is not None:
             # Browser hint only; Event.book() enforces capacity atomically.
             self.fields['number_of_tickets'].widget.attrs['max'] = max_tickets
+
+
+class EventFilterForm(forms.Form):
+    """Search and filter options for the event list (submitted via GET)."""
+
+    q = forms.CharField(required=False, max_length=100, label='Search',
+                        widget=forms.TextInput(attrs={'type': 'search', 'placeholder': 'Name, venue or description'}))
+    date_from = forms.DateField(required=False, label='From', widget=forms.DateInput(attrs={'type': 'date'}))
+    date_to = forms.DateField(required=False, label='To', widget=forms.DateInput(attrs={'type': 'date'}))
+    free = forms.BooleanField(required=False, label='Free only')
+    available = forms.BooleanField(required=False, label='Has seats left')
+
+    def clean(self):
+        cleaned = super().clean()
+        date_from, date_to = cleaned.get('date_from'), cleaned.get('date_to')
+        if date_from and date_to and date_from > date_to:
+            self.add_error('date_to', "'To' date must be on or after the 'From' date.")
+        return cleaned
+
+    def is_active(self):
+        return self.is_valid() and any(self.cleaned_data.values())
+
+    def apply(self, events):
+        """Filter an Event queryset (annotated with seat counts) by the valid options."""
+        if not self.is_valid():
+            return events
+        data = self.cleaned_data
+        if data['q']:
+            events = events.search(data['q'])
+        if data['date_from']:
+            events = events.filter(date__gte=data['date_from'])
+        if data['date_to']:
+            events = events.filter(date__lte=data['date_to'])
+        if data['free']:
+            events = events.filter(price=0)
+        if data['available']:
+            events = events.filter(seats_left__gt=0)
+        return events
