@@ -17,6 +17,9 @@
                 <a href="{% url 'event_list' %}"{% if current == 'event_list' %} aria-current="page"{% endif %}>Events</a>
                 {% if user.is_authenticated %}
                     <a href="{% url 'my_bookings' %}"{% if current == 'my_bookings' %} aria-current="page"{% endif %}>My Bookings</a>
+                    {% if perms.events.add_event or perms.events.change_event %}
+                        <a href="{% url 'my_events' %}"{% if current == 'my_events' %} aria-current="page"{% endif %}>My Events</a>
+                    {% endif %}
                     {% if perms.events.add_event %}
                         <a href="{% url 'add_event' %}"{% if current == 'add_event' %} aria-current="page"{% endif %}>Add Event</a>
                     {% endif %}

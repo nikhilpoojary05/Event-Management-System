@@ -6,6 +6,10 @@
 {% block content %}
     <h2 class="page-title">{{ event.event_name }}</h2>
 
+    {% if event.is_cancelled %}
+        <div class="message-error" role="status">This event has been cancelled by the organizer.</div>
+    {% endif %}
+
     <div class="card detail-card">
         <p><strong>Description:</strong> {{ event.description }}</p>
         <p><strong>Date:</strong> {{ event.date }}</p>
@@ -16,7 +20,9 @@
         <p><strong>Price:</strong> {{ event.price|price }}</p>
 
         <div class="actions">
-            {% if event.is_past %}
+            {% if event.is_cancelled %}
+                <button class="btn btn-secondary" disabled>Event Cancelled</button>
+            {% elif event.is_past %}
                 <button class="btn btn-secondary" disabled>Event Ended</button>
             {% elif user.is_authenticated %}
                 {% if remaining_seats > 0 %}
@@ -28,6 +34,16 @@
                 <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn">Login to Book</a>
             {% endif %}
         </div>
+
+        {% if can_manage %}
+            <div class="actions manage-actions">
+                <span class="manage-label">Organizer:</span>
+                <a href="{% url 'event_attendees' event.id %}" class="btn btn-secondary">Attendees</a>
+                {% if not event.is_cancelled and not event.is_past %}
+                    <a href="{% url 'edit_event' event.id %}" class="btn btn-secondary">Edit Event</a>
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
 
     <div class="footer-link">

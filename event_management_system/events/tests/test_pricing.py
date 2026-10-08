@@ -5,7 +5,7 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from ..models import Booking
-from ..templatetags.events_extras import price
+from ..templatetags.events_extras import money, price
 from .factories import PASSWORD, make_event, make_user
 
 
@@ -16,6 +16,10 @@ class PriceFilterTests(SimpleTestCase):
         self.assertEqual(price(Decimal('50')), '₹50.00')
         self.assertEqual(price(Decimal('1500.5')), '₹1,500.50')
         self.assertEqual(price(None), '')
+
+    def test_money_never_says_free(self):
+        self.assertEqual(money(Decimal('0')), '₹0.00')
+        self.assertEqual(money(Decimal('5988')), '₹5,988.00')
 
 
 class BookingPriceTests(TestCase):

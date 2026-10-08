@@ -1,0 +1,52 @@
+{% extends 'events/base.html' %}
+{% load events_extras %}
+
+{% block title %}Attendees: {{ event.event_name }}{% endblock %}
+
+{% block content %}
+    <h2 class="page-title">Attendees: {{ event.event_name }}</h2>
+
+    <dl class="summary stats">
+        <dt>Date</dt><dd>{{ event.date }}, {{ event.time }}</dd>
+        <dt>Status</dt><dd>{% if event.is_cancelled %}Cancelled{% elif event.is_past %}Ended{% else %}On sale{% endif %}</dd>
+        <dt>Tickets sold</dt><dd>{{ tickets_sold }} / {{ event.capacity }}</dd>
+        <dt>Attendees</dt><dd>{{ attendee_count }}</dd>
+        <dt>Revenue</dt><dd>{{ revenue|money }}</dd>
+    </dl>
+
+    {% if bookings %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <caption class="sr-only">Bookings for {{ event.event_name }}</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" class="num">Tickets</th>
+                        <th scope="col" class="num">Total</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Booked on</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                        <tr{% if booking.status == booking.Status.CANCELLED %} class="row-cancelled"{% endif %}>
+                            <td>{{ booking.user.get_full_name|default:booking.user.username }}</td>
+                            <td>{% if booking.user.email %}<a href="mailto:{{ booking.user.email }}">{{ booking.user.email }}</a>{% else %}—{% endif %}</td>
+                            <td class="num">{{ booking.number_of_tickets }}</td>
+                            <td class="num">{{ booking.total_price|price }}</td>
+                            <td>{{ booking.get_status_display }}</td>
+                            <td>{{ booking.booking_date|date:"M j, Y H:i" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state"><p>No bookings yet.</p></div>
+    {% endif %}
+
+    <div class="footer-link">
+        <a href="{% url 'my_events' %}">Back to My Events</a>
+    </div>
+{% endblock %}

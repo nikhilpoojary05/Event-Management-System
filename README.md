@@ -14,6 +14,7 @@ A Django web application for browsing, booking, and managing events online. Atte
 - Cancel bookings up to the event date (seats are released immediately)
 - "My Bookings" page with booking status
 - Event creation restricted to organizers (users with the *Can add event* permission)
+- Organizer dashboard ("My Events"): tickets sold and revenue per event, edit events, view attendees, and cancel events (which cancels their bookings)
 - Admin panel with seat counts, filters and search
 - Responsive layout for mobile
 
@@ -54,7 +55,8 @@ Open http://127.0.0.1:8000 in your browser. The admin panel is at http://127.0.0
 
 ## 👥 Roles
 - **Attendees** register on the site and can book and cancel tickets.
-- **Organizers** can add events. Superusers are organizers automatically. To make another user an organizer, open their account in the admin panel and give them the **events | event | Can add event** permission.
+- **Organizers** can add events and manage the events they created from **My Events**: edit details, see attendees and revenue, and cancel the event. To make a user an organizer, open their account in the admin panel and give them the **events | event | Can add event** permission.
+- **Administrators** (superusers, or users with **events | event | Can change event**) can manage every event, including ones created before organizers were tracked.
 
 ## 🧪 Development
 

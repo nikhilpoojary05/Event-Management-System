@@ -1,0 +1,77 @@
+{% extends 'events/base.html' %}
+{% load events_extras %}
+
+{% block title %}My Events{% endblock %}
+
+{% block content %}
+    <h2 class="page-title">My Events</h2>
+
+    {% if sees_all %}
+        <p class="info-bar">As an administrator you can manage all events.</p>
+    {% endif %}
+
+    {% if perms.events.add_event %}
+        <div class="actions page-actions">
+            <a href="{% url 'add_event' %}" class="btn">+ Add Event</a>
+        </div>
+    {% endif %}
+
+    {% if events %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <caption class="sr-only">Events you manage</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Date</th>
+                        {% if sees_all %}<th scope="col">Organizer</th>{% endif %}
+                        <th scope="col" class="num">Sold</th>
+                        <th scope="col" class="num">Revenue</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                        <tr>
+                            <td><a href="{% url 'event_detail' event.id %}">{{ event.event_name }}</a></td>
+                            <td>{{ event.date }}</td>
+                            {% if sees_all %}<td>{{ event.organizer.username|default:"—" }}</td>{% endif %}
+                            <td class="num">{{ event.booked_count }} / {{ event.capacity }}</td>
+                            <td class="num">{{ event.revenue|money }}</td>
+                            <td>
+                                {% if event.is_cancelled %}<span class="badge badge-soldout">Cancelled</span>
+                                {% elif event.is_past %}<span class="badge badge-muted">Ended</span>
+                                {% elif event.seats_left <= 0 %}<span class="badge badge-low">Sold out</span>
+                                {% else %}<span class="badge badge-ok">On sale</span>{% endif %}
+                            </td>
+                            <td class="row-actions">
+                                <a href="{% url 'event_attendees' event.id %}">Attendees</a>
+                                {% if not event.is_cancelled and not event.is_past %}
+                                    <a href="{% url 'edit_event' event.id %}">Edit</a>
+                                    <form method="post" action="{% url 'cancel_event' event.id %}"
+                                          onsubmit="return confirm('Cancel {{ event.event_name|escapejs }}? This also cancels all {{ event.booked_count }} booked ticket(s) and cannot be undone.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="link-danger">Cancel</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page.paginator.num_pages > 1 %}
+            <nav class="pagination" aria-label="Pages">
+                {% if page.has_previous %}<a href="{% querystring page=page.previous_page_number %}" class="btn btn-secondary">&larr; Previous</a>{% endif %}
+                <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+                {% if page.has_next %}<a href="{% querystring page=page.next_page_number %}" class="btn btn-secondary">Next &rarr;</a>{% endif %}
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <p>You haven't created any events yet.</p>
+        </div>
+    {% endif %}
+{% endblock %}
