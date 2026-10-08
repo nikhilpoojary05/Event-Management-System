@@ -21,8 +21,12 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('user', 'event', 'number_of_tickets', 'status', 'booking_date')
+    list_display = ('user', 'event', 'number_of_tickets', 'unit_price', 'total', 'status', 'booking_date')
     list_filter = ('status', 'event')
     search_fields = ('user__username', 'user__email', 'event__event_name')
     list_select_related = ('user', 'event')
     ordering = ('-booking_date',)
+
+    @admin.display(description='Total')
+    def total(self, booking):
+        return booking.total_price

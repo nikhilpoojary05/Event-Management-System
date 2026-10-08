@@ -9,6 +9,7 @@ A Django web application for browsing, booking, and managing events online. Atte
 - User registration & login (returns you to the page you came from)
 - Upcoming / past event listings with seats left, "Sold out" and "Only N left" badges, and pagination
 - Event booking with capacity checks that are safe against simultaneous bookings
+- Booking summary with a live total price; each booking keeps the ticket price it was booked at
 - Cancel bookings up to the event date (seats are released immediately)
 - "My Bookings" page with booking status
 - Event creation restricted to organizers (users with the *Can add event* permission)

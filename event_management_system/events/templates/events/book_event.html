@@ -1,4 +1,5 @@
 {% extends 'events/base.html' %}
+{% load events_extras l10n %}
 
 {% block title %}Book {{ event.event_name }}{% endblock %}
 
@@ -11,9 +12,22 @@
         {% endif %}
 
         {% if form %}
+            <dl class="summary">
+                <dt>Date</dt><dd>{{ event.date }}, {{ event.time }}</dd>
+                <dt>Venue</dt><dd>{{ event.venue }}</dd>
+                <dt>Price per ticket</dt><dd>{{ event.price|price }}</dd>
+                <dt>Seats left</dt><dd>{{ remaining_seats }}</dd>
+            </dl>
+
             <form method="post">
                 {% csrf_token %}
                 {{ form.as_p }}
+
+                <p class="summary-total">
+                    Total:
+                    <strong id="booking-total" data-unit-price="{{ event.price|unlocalize }}" aria-live="polite">{{ total|price }}</strong>
+                </p>
+
                 <button type="submit" class="btn">Confirm Booking</button>
             </form>
         {% else %}
@@ -24,4 +38,26 @@
     <div class="footer-link">
         <a href="{% url 'event_detail' event.id %}">Back to Event Detail</a>
     </div>
+
+    {% if form %}
+        <script>
+            (function () {
+                var input = document.getElementById('id_number_of_tickets');
+                var total = document.getElementById('booking-total');
+                var paise = Math.round(parseFloat(total.dataset.unitPrice) * 100);
+
+                function format(amountPaise) {
+                    if (amountPaise === 0) return 'Free';
+                    return '₹' + (amountPaise / 100).toLocaleString('en-US', {
+                        minimumFractionDigits: 2, maximumFractionDigits: 2
+                    });
+                }
+
+                input.addEventListener('input', function () {
+                    var tickets = parseInt(input.value, 10);
+                    total.textContent = tickets > 0 ? format(paise * tickets) : '—';
+                });
+            })();
+        </script>
+    {% endif %}
 {% endblock %}

@@ -26,6 +26,7 @@ class EventForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['date'].widget.attrs['min'] = timezone.localdate().isoformat()
+        self.fields['capacity'].widget.attrs['min'] = 1
 
     def clean_date(self):
         date = self.cleaned_data['date']
@@ -38,3 +39,11 @@ class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
         fields = ['number_of_tickets']
+
+    def __init__(self, *args, max_tickets=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # PositiveIntegerField renders min="0"; the model requires at least 1.
+        self.fields['number_of_tickets'].widget.attrs['min'] = 1
+        if max_tickets is not None:
+            # Browser hint only; Event.book() enforces capacity atomically.
+            self.fields['number_of_tickets'].widget.attrs['max'] = max_tickets

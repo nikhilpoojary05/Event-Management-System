@@ -59,6 +59,9 @@ class EventFormWidgetTests(SimpleTestCase):
         self.assertIn(f'min="{timezone.localdate().isoformat()}"', html)
         self.assertIn('type="time"', html)
 
+    def test_capacity_input_minimum_is_one(self):
+        self.assertIn('min="1"', str(EventForm()['capacity']))
+
 
 class BookingFormTests(SimpleTestCase):
     def test_accepts_positive_tickets(self):
