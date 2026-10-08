@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from .forms import BookingForm, EventForm, RegisterForm
+from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm
 from .models import Booking, Event, EventInPast, NotEnoughSeats
 from .templatetags.events_extras import price
 
@@ -22,11 +22,15 @@ def event_list(request):
     show_past = request.GET.get('when') == 'past'
     events = Event.objects.with_seat_counts()
     events = events.past() if show_past else events.upcoming()
+    filter_form = EventFilterForm(request.GET)
+    events = filter_form.apply(events)
     page = Paginator(events, EVENTS_PER_PAGE).get_page(request.GET.get('page'))
     return render(request, 'events/event_list.html', {
         'page': page,
         'events': page.object_list,
         'show_past': show_past,
+        'filter_form': filter_form,
+        'filtering': filter_form.is_active(),
     })
 
 

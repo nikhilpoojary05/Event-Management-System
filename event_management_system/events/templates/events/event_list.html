@@ -13,9 +13,49 @@
     {% endif %}
 
     <nav class="tabs" aria-label="Event timeframe">
-        <a href="{% url 'event_list' %}"{% if not show_past %} aria-current="page"{% endif %}>Upcoming</a>
-        <a href="{% url 'event_list' %}?when=past"{% if show_past %} aria-current="page"{% endif %}>Past</a>
+        <a href="{% querystring when=None page=None %}"{% if not show_past %} aria-current="page"{% endif %}>Upcoming</a>
+        <a href="{% querystring when='past' page=None %}"{% if show_past %} aria-current="page"{% endif %}>Past</a>
     </nav>
+
+    <form method="get" class="filter-bar" role="search" aria-label="Filter events">
+        {% if show_past %}<input type="hidden" name="when" value="past">{% endif %}
+        <div class="filter-field filter-search">
+            <label for="{{ filter_form.q.id_for_label }}">{{ filter_form.q.label }}</label>
+            {{ filter_form.q }}
+        </div>
+        <div class="filter-field">
+            <label for="{{ filter_form.date_from.id_for_label }}">{{ filter_form.date_from.label }}</label>
+            {{ filter_form.date_from }}
+        </div>
+        <div class="filter-field">
+            <label for="{{ filter_form.date_to.id_for_label }}">{{ filter_form.date_to.label }}</label>
+            {{ filter_form.date_to }}
+        </div>
+        <div class="filter-checks">
+            <label>{{ filter_form.free }} {{ filter_form.free.label }}</label>
+            {% if not show_past %}
+                <label>{{ filter_form.available }} {{ filter_form.available.label }}</label>
+            {% endif %}
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn">Search</button>
+            {% if filtering %}
+                <a href="{% if show_past %}?when=past{% else %}{% url 'event_list' %}{% endif %}" class="btn btn-secondary">Clear filters</a>
+            {% endif %}
+        </div>
+        {% if filter_form.errors %}
+            <div class="message-error filter-errors" role="alert">
+                {% for field in filter_form %}{% for error in field.errors %}<p>{{ field.label }}: {{ error }}</p>{% endfor %}{% endfor %}
+                {% for error in filter_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+    </form>
+
+    {% if filtering %}
+        <p class="result-count" role="status">
+            {{ page.paginator.count }} event{{ page.paginator.count|pluralize }} found
+        </p>
+    {% endif %}
 
     {% for event in events %}
         <div class="card">
@@ -42,18 +82,22 @@
         </div>
     {% empty %}
         <div class="card">
-            <p>{% if show_past %}No past events.{% else %}No upcoming events.{% endif %}</p>
+            <p>
+                {% if filtering %}No events match your filters.
+                {% elif show_past %}No past events.
+                {% else %}No upcoming events.{% endif %}
+            </p>
         </div>
     {% endfor %}
 
     {% if page.paginator.num_pages > 1 %}
         <nav class="pagination" aria-label="Pages">
             {% if page.has_previous %}
-                <a href="?{% if show_past %}when=past&amp;{% endif %}page={{ page.previous_page_number }}" class="btn btn-secondary">&larr; Previous</a>
+                <a href="{% querystring page=page.previous_page_number %}" class="btn btn-secondary">&larr; Previous</a>
             {% endif %}
             <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
             {% if page.has_next %}
-                <a href="?{% if show_past %}when=past&amp;{% endif %}page={{ page.next_page_number }}" class="btn btn-secondary">Next &rarr;</a>
+                <a href="{% querystring page=page.next_page_number %}" class="btn btn-secondary">Next &rarr;</a>
             {% endif %}
         </nav>
     {% endif %}

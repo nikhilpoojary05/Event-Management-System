@@ -15,6 +15,15 @@ class EventQuerySet(models.QuerySet):
     def past(self):
         return self.filter(date__lt=timezone.localdate()).order_by('-date', '-time')
 
+    def search(self, text):
+        """Events whose name, venue or description contain every word of text."""
+        qs = self
+        for word in text.split():
+            qs = qs.filter(
+                Q(event_name__icontains=word) | Q(venue__icontains=word) | Q(description__icontains=word)
+            )
+        return qs
+
     def with_seat_counts(self):
         """Annotate booked_count and seats_left in the same query."""
         return self.annotate(
