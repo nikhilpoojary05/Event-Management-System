@@ -1,0 +1,12 @@
+{% autoescape off %}Hi {{ name }},
+
+The organizer has changed an event you're booked for:
+
+{% for label, old, new in changes %}  {{ label }}: {{ old }} -> {{ new }}
+{% endfor %}
+Updated details:
+
+{% include "events/email/_event_details.txt" %}
+Your booking #{{ booking.id }} for {{ booking.number_of_tickets }} ticket(s) is still active.
+If you can no longer attend, you can cancel it here: {{ bookings_url }}
+{% endautoescape %}

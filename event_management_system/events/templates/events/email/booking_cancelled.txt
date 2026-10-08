@@ -1,0 +1,7 @@
+{% autoescape off %}Hi {{ name }},
+
+Your booking #{{ booking.id }} for {{ booking.number_of_tickets }} ticket(s) has been cancelled, as you requested.
+
+{% include "events/email/_event_details.txt" %}
+Changed your mind? If seats are still available you can book again: {{ event_url }}
+{% endautoescape %}

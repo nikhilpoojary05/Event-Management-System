@@ -56,6 +56,28 @@ class SettingsFromEnvironmentTests(SimpleTestCase):
             True, True, True, True,
         ])
 
+    def test_email_prints_to_console_in_development(self):
+        backend, site = self.load({}, '[s.EMAIL_BACKEND, s.SITE_URL]')
+        self.assertEqual(backend, 'django.core.mail.backends.console.EmailBackend')
+        self.assertEqual(site, 'http://127.0.0.1:8000')
+
+    def test_email_uses_smtp_from_environment_in_production(self):
+        values = self.load(
+            {
+                'DJANGO_DEBUG': 'False', 'DJANGO_SECRET_KEY': PRODUCTION_KEY,
+                'DJANGO_EMAIL_HOST': 'smtp.example.com', 'DJANGO_EMAIL_PORT': '465',
+                'DJANGO_EMAIL_HOST_USER': 'mailer', 'DJANGO_EMAIL_HOST_PASSWORD': 'secret',
+                'DJANGO_EMAIL_USE_TLS': 'false', 'DJANGO_DEFAULT_FROM_EMAIL': 'Events <hi@example.com>',
+                'DJANGO_SITE_URL': 'https://events.example.com/',
+            },
+            '[s.EMAIL_BACKEND, s.EMAIL_HOST, s.EMAIL_PORT, s.EMAIL_HOST_USER, s.EMAIL_HOST_PASSWORD, '
+            's.EMAIL_USE_TLS, s.DEFAULT_FROM_EMAIL, s.SITE_URL]',
+        )
+        self.assertEqual(values, [
+            'django.core.mail.backends.smtp.EmailBackend', 'smtp.example.com', 465, 'mailer', 'secret',
+            False, 'Events <hi@example.com>', 'https://events.example.com',
+        ])
+
     def test_production_passes_deploy_checklist(self):
         clean = {k: v for k, v in os.environ.items() if not k.startswith('DJANGO_')}
         clean.update(DJANGO_DEBUG='False', DJANGO_SECRET_KEY=PRODUCTION_KEY, DJANGO_ALLOWED_HOSTS='example.com')

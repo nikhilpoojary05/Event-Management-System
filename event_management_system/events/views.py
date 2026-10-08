@@ -5,9 +5,12 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.dateformat import format as format_date
+from django.utils.dateformat import time_format
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from . import notifications
 from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm
 from .models import Booking, Event, EventCancelled, EventInPast, NotEnoughSeats
 from .templatetags.events_extras import price
@@ -204,6 +207,14 @@ def my_events(request):
     })
 
 
+# Changes to these fields are emailed to attendees, formatted for reading.
+NOTIFY_ON_CHANGE = {
+    'date': ('Date', lambda d: format_date(d, 'l, j F Y')),
+    'time': ('Time', lambda t: time_format(t, 'g:i A')),
+    'venue': ('Venue', str),
+}
+
+
 @login_required
 def edit_event(request, event_id):
     event = get_managed_event(request, event_id)
@@ -212,6 +223,8 @@ def edit_event(request, event_id):
         return redirect('my_events')
 
     if request.method == 'POST':
+        # Snapshot first: validating a ModelForm writes the new values onto `event`.
+        before = {field: getattr(event, field) for field in NOTIFY_ON_CHANGE}
         form = EventForm(request.POST, instance=event, min_capacity=event.booked_seats())
         if form.is_valid():
             with transaction.atomic():
@@ -222,6 +235,14 @@ def edit_event(request, event_id):
                     form.add_error('capacity', f'Capacity cannot be less than the {booked} seats already booked.')
                 else:
                     form.save()
+                    changes = [
+                        (label, fmt(before[field]), fmt(getattr(event, field)))
+                        for field, (label, fmt) in NOTIFY_ON_CHANGE.items()
+                        if before[field] != getattr(event, field)
+                    ]
+                    if changes:
+                        attendees = event.booking_set.filter(status=Booking.Status.BOOKED)
+                        notifications.event_updated(event, list(attendees.select_related('user', 'event')), changes)
             if not form.errors:
                 messages.success(request, f'Event "{event.event_name}" has been updated.')
                 return redirect('event_detail', event_id=event.id)

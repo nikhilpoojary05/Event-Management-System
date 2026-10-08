@@ -7,6 +7,8 @@ from django.db.models import DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from . import notifications
+
 
 class EventQuerySet(models.QuerySet):
     def upcoming(self):
@@ -102,9 +104,11 @@ class Event(models.Model):
                 raise EventInPast
             if number_of_tickets > event.remaining_seats():
                 raise NotEnoughSeats
-            return Booking.objects.create(
+            booking = Booking.objects.create(
                 user=user, event=event, number_of_tickets=number_of_tickets, unit_price=event.price
             )
+            notifications.booking_confirmed(booking)
+            return booking
 
     def cancel(self):
         """Cancel the event and all its active bookings. Returns the number of bookings cancelled."""
@@ -115,9 +119,13 @@ class Event(models.Model):
             event.is_cancelled = True
             event.save(update_fields=['is_cancelled'])
             self.is_cancelled = True
-            return event.booking_set.filter(status=Booking.Status.BOOKED).update(
-                status=Booking.Status.CANCELLED
-            )
+            active = event.booking_set.filter(status=Booking.Status.BOOKED)
+            affected = list(active.select_related('user', 'event'))
+            active.update(status=Booking.Status.CANCELLED)
+            for booking in affected:
+                booking.status = Booking.Status.CANCELLED
+            notifications.event_cancelled(event, affected)
+            return len(affected)
 
 
 class BookingError(Exception):
@@ -167,6 +175,8 @@ class Booking(models.Model):
         """Cancel this booking, freeing its seats. Returns False if not allowed."""
         if not self.can_cancel:
             return False
-        self.status = self.Status.CANCELLED
-        self.save(update_fields=['status'])
+        with transaction.atomic():
+            self.status = self.Status.CANCELLED
+            self.save(update_fields=['status'])
+            notifications.booking_cancelled(self)
         return True

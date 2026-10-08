@@ -1,0 +1,10 @@
+{% load events_extras %}{% autoescape off %}Hi {{ name }},
+
+We're sorry: the following event has been cancelled by the organizer.
+
+{% include "events/email/_event_details.txt" %}
+Your booking #{{ booking.id }} for {{ booking.number_of_tickets }} ticket(s) ({{ booking.total_price|price }}) has been cancelled.
+{% if booking.total_price %}Please contact the organizer about a refund.
+{% endif %}
+Your bookings: {{ bookings_url }}
+{% endautoescape %}

@@ -1,0 +1,14 @@
+{% load events_extras %}{% autoescape off %}Hi {{ name }},
+
+Your booking is confirmed.
+
+{% include "events/email/_event_details.txt" %}
+Booking: #{{ booking.id }}
+Tickets: {{ booking.number_of_tickets }} × {{ booking.unit_price|price }}
+Total:   {{ booking.total_price|price }}
+
+View the event: {{ event_url }}
+Manage your bookings: {{ bookings_url }}
+
+See you there!
+{% endautoescape %}

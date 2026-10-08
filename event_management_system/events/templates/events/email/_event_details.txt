@@ -1,0 +1,4 @@
+{% load events_extras %}Event:   {{ event.event_name }}
+Date:    {{ event.date|date:"l, j F Y" }}
+Time:    {{ event.time|time:"g:i A" }}
+Venue:   {{ event.venue }}
