@@ -12,6 +12,7 @@ A Django web application for browsing, booking, and managing events online. Atte
 - Event booking with capacity checks that are safe against simultaneous bookings
 - Booking summary with a live total price; each booking keeps the ticket price it was booked at
 - Cancel bookings up to the event date (seats are released immediately)
+- Email notifications: booking confirmed or cancelled, and event cancelled or rescheduled (date, time or venue changed)
 - "My Bookings" page with booking status
 - Event creation restricted to organizers (users with the *Can add event* permission)
 - Organizer dashboard ("My Events"): tickets sold and revenue per event, edit events, view attendees, and cancel events (which cancels their bookings)
@@ -52,6 +53,8 @@ python manage.py runserver
 ```
 
 Open http://127.0.0.1:8000 in your browser. The admin panel is at http://127.0.0.1:8000/admin/.
+
+In development, emails (booking confirmations etc.) are printed in the terminal running `runserver` instead of being sent.
 
 ## 👥 Roles
 - **Attendees** register on the site and can book and cancel tickets.
@@ -112,6 +115,12 @@ Locally the app needs no configuration: it runs in debug mode with a development
 | `DJANGO_SECURE_SSL_REDIRECT` | no | Defaults to `True`; set `False` if your host already redirects to HTTPS. |
 | `DJANGO_SECURE_HSTS_SECONDS` | no | HSTS duration; defaults to 30 days. |
 | `DJANGO_SECURE_HSTS_PRELOAD` | no | Defaults to `False`. Only enable once HTTPS is permanent, as it is hard to undo. |
+| `DJANGO_SITE_URL` | yes | Public URL of the site, used for links in emails, e.g. `https://events.example.com`. |
+| `DJANGO_EMAIL_HOST` | yes | SMTP server, e.g. `smtp.gmail.com`. |
+| `DJANGO_EMAIL_PORT` | no | Defaults to `587`. |
+| `DJANGO_EMAIL_HOST_USER` / `DJANGO_EMAIL_HOST_PASSWORD` | if needed | SMTP login. |
+| `DJANGO_EMAIL_USE_TLS` | no | Defaults to `True`. |
+| `DJANGO_DEFAULT_FROM_EMAIL` | yes | Sender, e.g. `Events <noreply@example.com>`. |
 
 Generate a secret key with:
 
