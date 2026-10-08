@@ -1,13 +1,15 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm
-from .models import Booking, Event, EventInPast, NotEnoughSeats
+from .models import Booking, Event, EventCancelled, EventInPast, NotEnoughSeats
 from .templatetags.events_extras import price
 
 
@@ -39,7 +41,8 @@ def event_detail(request, event_id):
 
     return render(request, 'events/event_detail.html', {
         'event': event,
-        'remaining_seats': event.remaining_seats()
+        'remaining_seats': event.remaining_seats(),
+        'can_manage': event.can_manage(request.user),
     })
 
 
@@ -96,6 +99,8 @@ def book_event(request, event_id):
     def closed(error):
         return render(request, 'events/book_event.html', {'event': event, 'form': None, 'error': error})
 
+    if event.is_cancelled:
+        return closed('This event has been cancelled.')
     if event.is_past:
         return closed('This event has already taken place.')
 
@@ -110,6 +115,8 @@ def book_event(request, event_id):
                 booking = event.book(request.user, form.cleaned_data['number_of_tickets'])
             except NotEnoughSeats:
                 form.add_error(None, 'Not enough seats available!')
+            except EventCancelled:
+                return closed('This event has been cancelled.')
             except EventInPast:
                 return closed('This event has already taken place.')
             else:
@@ -162,10 +169,92 @@ def add_event(request):
     if request.method == 'POST':
         form = EventForm(request.POST)
         if form.is_valid():
-            event = form.save()
+            event = form.save(commit=False)
+            event.organizer = request.user
+            event.save()
             messages.success(request, f'Event "{event.event_name}" has been created.')
             return redirect('event_detail', event_id=event.id)
     else:
         form = EventForm()
 
     return render(request, 'events/add_event.html', {'form': form})
+
+
+def get_managed_event(request, event_id):
+    """Fetch an event the current user may manage, or raise 404/403."""
+    event = get_object_or_404(Event, id=event_id)
+    if not event.can_manage(request.user):
+        raise PermissionDenied
+    return event
+
+
+@login_required
+def my_events(request):
+    user = request.user
+    if not (user.has_perm('events.add_event') or user.has_perm('events.change_event')):
+        raise PermissionDenied
+    sees_all = user.has_perm('events.change_event')
+    events = Event.objects.all() if sees_all else Event.objects.filter(organizer=user)
+    events = events.with_seat_counts().with_revenue().select_related('organizer').order_by('-date', '-time')
+    page = Paginator(events, 20).get_page(request.GET.get('page'))
+    return render(request, 'events/my_events.html', {
+        'page': page,
+        'events': page.object_list,
+        'sees_all': sees_all,
+    })
+
+
+@login_required
+def edit_event(request, event_id):
+    event = get_managed_event(request, event_id)
+    if event.is_cancelled or event.is_past:
+        messages.error(request, 'Cancelled or past events cannot be edited.')
+        return redirect('my_events')
+
+    if request.method == 'POST':
+        form = EventForm(request.POST, instance=event, min_capacity=event.booked_seats())
+        if form.is_valid():
+            with transaction.atomic():
+                # Re-check under the same lock Event.book() uses, so a booking
+                # made while this form was open can't push capacity below sales.
+                booked = Event.objects.select_for_update().get(pk=event.pk).booked_seats()
+                if form.cleaned_data['capacity'] < booked:
+                    form.add_error('capacity', f'Capacity cannot be less than the {booked} seats already booked.')
+                else:
+                    form.save()
+            if not form.errors:
+                messages.success(request, f'Event "{event.event_name}" has been updated.')
+                return redirect('event_detail', event_id=event.id)
+    else:
+        form = EventForm(instance=event, min_capacity=event.booked_seats())
+
+    return render(request, 'events/edit_event.html', {'form': form, 'event': event})
+
+
+@login_required
+def event_attendees(request, event_id):
+    event = get_managed_event(request, event_id)
+    bookings = event.booking_set.select_related('user').order_by('status', '-booking_date')
+    active = [b for b in bookings if b.status == Booking.Status.BOOKED]
+    return render(request, 'events/event_attendees.html', {
+        'event': event,
+        'bookings': bookings,
+        'tickets_sold': sum(b.number_of_tickets for b in active),
+        'revenue': sum((b.total_price for b in active), 0),
+        'attendee_count': len({b.user_id for b in active}),
+    })
+
+
+@login_required
+@require_POST
+def cancel_event(request, event_id):
+    event = get_managed_event(request, event_id)
+    if event.is_cancelled or event.is_past:
+        messages.error(request, 'This event can no longer be cancelled.')
+    else:
+        cancelled = event.cancel()
+        messages.success(
+            request,
+            f'Event "{event.event_name}" has been cancelled, along with {cancelled} booking(s).'
+        )
+    return redirect('my_events')

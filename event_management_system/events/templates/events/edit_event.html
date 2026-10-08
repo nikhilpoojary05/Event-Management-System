@@ -1,0 +1,20 @@
+{% extends 'events/base.html' %}
+
+{% block title %}Edit {{ event.event_name }}{% endblock %}
+
+{% block content %}
+    <h2 class="page-title">Edit Event: {{ event.event_name }}</h2>
+
+    <div class="form-card">
+        <p class="form-note">Changing the price won't affect existing bookings; they keep the price they were booked at.</p>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn">Save Changes</button>
+        </form>
+    </div>
+
+    <div class="footer-link">
+        <a href="{% url 'my_events' %}">Back to My Events</a>
+    </div>
+{% endblock %}

@@ -11,6 +11,9 @@
             {% for booking in bookings %}
                 <div class="card{% if booking.status == booking.Status.CANCELLED %} card-cancelled{% endif %}">
                     <h3>{{ booking.event.event_name }}</h3>
+                    {% if booking.event.is_cancelled %}
+                        <p class="event-cancelled-note">This event was cancelled by the organizer.</p>
+                    {% endif %}
                     <p><strong>Event Date:</strong> {{ booking.event.date }}, {{ booking.event.time }}</p>
                     <p><strong>Tickets:</strong> {{ booking.number_of_tickets }} &times; {{ booking.unit_price|price }}</p>
                     <p><strong>Total:</strong> {{ booking.total_price|price }}</p>

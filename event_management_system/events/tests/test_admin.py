@@ -31,3 +31,25 @@ class AdminTests(TestCase):
         response = self.client.get(reverse('admin:events_booking_changelist'), {'q': 'alice'})
         self.assertContains(response, 'alice')
         self.assertNotContains(response, '>bob<')
+
+
+class EventAdminCancelActionTests(TestCase):
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser('root2', 'root2@example.com', PASSWORD))
+
+    def test_cancel_action_cascades_to_bookings(self):
+        event = make_event(event_name='Gala')
+        booking = event.book(make_user('fan'), 2)
+        response = self.client.post(reverse('admin:events_event_changelist'), {
+            'action': 'cancel_events', '_selected_action': [event.pk],
+        }, follow=True)
+        self.assertContains(response, 'Cancelled 1 event(s) and 1 booking(s).')
+        event.refresh_from_db()
+        booking.refresh_from_db()
+        self.assertTrue(event.is_cancelled)
+        self.assertEqual(booking.status, Booking.Status.CANCELLED)
+
+    def test_is_cancelled_not_editable_on_change_form(self):
+        event = make_event()
+        response = self.client.get(reverse('admin:events_event_change', args=[event.pk]))
+        self.assertNotContains(response, 'name="is_cancelled"')

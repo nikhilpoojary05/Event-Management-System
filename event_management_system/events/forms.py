@@ -23,10 +23,20 @@ class EventForm(forms.ModelForm):
             'time': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, min_capacity=1, **kwargs):
         super().__init__(*args, **kwargs)
+        # When editing, capacity can't drop below the seats already booked.
+        self.min_capacity = max(min_capacity, 1)
         self.fields['date'].widget.attrs['min'] = timezone.localdate().isoformat()
-        self.fields['capacity'].widget.attrs['min'] = 1
+        self.fields['capacity'].widget.attrs['min'] = self.min_capacity
+
+    def clean_capacity(self):
+        capacity = self.cleaned_data['capacity']
+        if capacity < self.min_capacity:
+            raise forms.ValidationError(
+                f'Capacity cannot be less than the {self.min_capacity} seats already booked.'
+            )
+        return capacity
 
     def clean_date(self):
         date = self.cleaned_data['date']
@@ -83,5 +93,5 @@ class EventFilterForm(forms.Form):
         if data['free']:
             events = events.filter(price=0)
         if data['available']:
-            events = events.filter(seats_left__gt=0)
+            events = events.filter(seats_left__gt=0, is_cancelled=False)
         return events

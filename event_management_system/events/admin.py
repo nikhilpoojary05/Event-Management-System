@@ -5,8 +5,14 @@ from .models import Booking, Event
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ('event_name', 'date', 'time', 'venue', 'capacity', 'seats_left', 'price')
-    list_filter = ('date', 'venue')
+    list_display = ('event_name', 'date', 'time', 'venue', 'organizer', 'capacity', 'seats_left', 'price',
+                    'is_cancelled')
+    list_filter = ('is_cancelled', 'date', 'venue')
+    list_select_related = ('organizer',)
+    autocomplete_fields = ('organizer',)
+    # Cancelling must also cancel bookings, so it goes through the action below, not a checkbox.
+    readonly_fields = ('is_cancelled',)
+    actions = ['cancel_events']
     search_fields = ('event_name', 'venue', 'description')
     date_hierarchy = 'date'
     ordering = ('-date', '-time')
@@ -17,6 +23,15 @@ class EventAdmin(admin.ModelAdmin):
     @admin.display(description='Seats left', ordering='seats_left')
     def seats_left(self, event):
         return event.seats_left
+
+    @admin.action(description='Cancel selected events (and their bookings)')
+    def cancel_events(self, request, queryset):
+        events = bookings = 0
+        for event in queryset:
+            if not (event.is_cancelled or event.is_past):
+                bookings += event.cancel()
+                events += 1
+        self.message_user(request, f'Cancelled {events} event(s) and {bookings} booking(s).')
 
 
 @admin.register(Booking)
