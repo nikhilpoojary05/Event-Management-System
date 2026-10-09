@@ -18,6 +18,9 @@
         <p><strong>Total Capacity:</strong> {{ event.capacity }}</p>
         <p><strong>Available Seats:</strong> {{ remaining_seats }}{% if waiting_count %} ({{ waiting_count }} on the waitlist){% endif %}</p>
         <p><strong>Price:</strong> {{ event.price|price }}</p>
+        {% if not event.is_cancelled and not event.is_past %}
+            <p><a href="{% url 'event_calendar' event.id %}" class="calendar-link">&#128197; Add to calendar</a></p>
+        {% endif %}
 
         <div class="actions">
             {% if event.is_cancelled %}

@@ -21,6 +21,7 @@
                     <p><strong>Booked On:</strong> {{ booking.booking_date }}</p>
 
                     {% if booking.can_cancel %}
+                        <p><a href="{% url 'event_calendar' booking.event.id %}" class="calendar-link">&#128197; Add to calendar</a></p>
                         <form method="post" action="{% url 'cancel_booking' booking.id %}" class="actions"
                               onsubmit="return confirm('Cancel your booking for {{ booking.event.event_name|escapejs }}?');">
                             {% csrf_token %}

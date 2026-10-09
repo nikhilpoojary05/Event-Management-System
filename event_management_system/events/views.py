@@ -6,12 +6,13 @@ from django.contrib.auth.views import LoginView
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateformat import format as format_date
 from django.utils.dateformat import time_format
 from django.views.decorators.http import require_POST
 
-from . import login_throttle, notifications
+from . import calendar, login_throttle, notifications
 from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm, WaitlistForm
 from .models import AlreadyWaitlisted, Booking, Event, EventCancelled, EventInPast, NotEnoughSeats, WaitlistEntry
 from .templatetags.events_extras import price
@@ -353,3 +354,11 @@ def leave_waitlist(request, entry_id):
     else:
         messages.error(request, 'You are no longer on this waitlist.')
     return redirect('my_bookings')
+
+
+def event_calendar(request, event_id):
+    """Download the event as an .ics file for Google Calendar, Outlook, Apple Calendar, etc."""
+    event = get_object_or_404(Event, id=event_id)
+    response = HttpResponse(calendar.build_ics(event), content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{calendar.filename(event)}"'
+    return response

@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('events/', views.event_list, name='event_list'),
     path('event/<int:event_id>/', views.event_detail, name='event_detail'),
+    path('event/<int:event_id>/calendar.ics', views.event_calendar, name='event_calendar'),
     path('register/', views.register, name='register'),
     path('login/', views.UserLoginView.as_view(), name='login'),
     path('logout/', views.user_logout, name='logout'),

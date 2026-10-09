@@ -12,6 +12,8 @@ A Django web application for browsing, booking, and managing events online. Atte
 - Event booking with capacity checks that are safe against simultaneous bookings
 - Booking summary with a live total price; each booking keeps the ticket price it was booked at
 - Cancel bookings up to the event date (seats are released immediately)
+- "Add to calendar" (.ics) on event pages and My Bookings, also attached to confirmation emails
+- Login protection: 5 failed attempts lock out further tries for 15 minutes
 - Waitlist for sold-out events: when seats free up, waiting users are booked automatically in the order they joined and emailed
 - Email notifications: booking confirmed or cancelled, and event cancelled or rescheduled (date, time or venue changed)
 - "My Bookings" page with booking status
