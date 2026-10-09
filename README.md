@@ -20,12 +20,12 @@ A Django web application for browsing, booking, and managing events online. Atte
 - Event creation restricted to organizers (users with the *Can add event* permission)
 - Organizer dashboard ("My Events"): tickets sold and revenue per event, edit events, view attendees, and cancel events (which cancels their bookings)
 - Admin panel with seat counts, filters and search
-- Responsive layout for mobile
+- Responsive design with automatic dark mode; colors are CSS variables at the top of `static/events/style.css`
 
 ## 🛠 Technologies Used
 - Python 3.13
 - Django 6
-- HTML, CSS
+- HTML, CSS (no framework), with [Inter](https://fonts.google.com/specimen/Inter) and [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) from Google Fonts
 - SQLite
 
 ## ⚙️ Installation

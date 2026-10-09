@@ -1,0 +1,26 @@
+{% if form.non_field_errors %}
+    <div class="message-error" role="alert">{% for error in form.non_field_errors %}{{ error }} {% endfor %}</div>
+{% endif %}
+
+<fieldset>
+    <legend>Details</legend>
+    <div class="field">{{ form.event_name.as_field_group }}</div>
+    <div class="field">{{ form.description.as_field_group }}</div>
+</fieldset>
+
+<fieldset>
+    <legend>When &amp; where</legend>
+    <div class="field-row">
+        <div class="field">{{ form.date.as_field_group }}</div>
+        <div class="field">{{ form.time.as_field_group }}</div>
+    </div>
+    <div class="field">{{ form.venue.as_field_group }}</div>
+</fieldset>
+
+<fieldset>
+    <legend>Tickets</legend>
+    <div class="field-row">
+        <div class="field">{{ form.capacity.as_field_group }}</div>
+        <div class="field">{{ form.price.as_field_group }}</div>
+    </div>
+</fieldset>

@@ -1,14 +1,39 @@
 {% extends 'events/base.html' %}
+{% load events_extras %}
 
 {% block title %}Home{% endblock %}
 
 {% block content %}
-    <div class="hero">
-        <h2>Welcome to Event Management System</h2>
+    <section class="hero" aria-labelledby="hero-title">
+        <span class="hero-eyebrow">Tech fests &middot; concerts &middot; workshops &middot; meetups</span>
+        <h2 id="hero-title">Find your next event and grab a seat in seconds.</h2>
         <p>
-            Explore events, check seat availability, book tickets online,
-            and manage your bookings easily through a clean and user-friendly interface.
+            Explore upcoming events, see live seat availability, book tickets online,
+            and manage everything from one place.
         </p>
-        <a href="{% url 'event_list' %}" class="btn">Explore Events</a>
-    </div>
+        <div class="actions">
+            <a href="{% url 'event_list' %}" class="btn">Explore Events</a>
+            {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn btn-ghost">Create a free account</a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="features" aria-label="Highlights">
+        <div class="feature">
+            <div class="feature-icon">{% icon 'ticket' %}</div>
+            <h3>Book in a few clicks</h3>
+            <p>Pick your tickets, see the total up front, and get a confirmation email with a calendar invite.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">{% icon 'bell' %}</div>
+            <h3>Never miss out</h3>
+            <p>Sold out? Join the waitlist and we'll book your seats automatically when they free up.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">{% icon 'sparkles' %}</div>
+            <h3>Built for organizers</h3>
+            <p>Publish events, track tickets and revenue, and keep attendees updated when plans change.</p>
+        </div>
+    </section>
 {% endblock %}

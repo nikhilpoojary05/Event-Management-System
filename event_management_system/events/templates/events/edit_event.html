@@ -3,18 +3,20 @@
 {% block title %}Edit {{ event.event_name }}{% endblock %}
 
 {% block content %}
-    <h2 class="page-title">Edit Event: {{ event.event_name }}</h2>
-
     <div class="form-card">
-        <p class="form-note">Changing the price won't affect existing bookings; they keep the price they were booked at.</p>
+        <div class="form-header">
+            <h2 class="page-title">Edit Event</h2>
+            <p>{{ event.event_name }}</p>
+        </div>
+        <p class="form-note message-info">Changing the price won't affect existing bookings; they keep the price they were booked at.</p>
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn">Save Changes</button>
+            {% include 'events/_event_form_fields.html' %}
+            <button type="submit" class="btn btn-block">Save Changes</button>
         </form>
     </div>
 
     <div class="footer-link">
-        <a href="{% url 'my_events' %}">Back to My Events</a>
+        <a href="{% url 'my_events' %}">&larr; Back to My Events</a>
     </div>
 {% endblock %}

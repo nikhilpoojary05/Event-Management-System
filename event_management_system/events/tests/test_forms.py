@@ -38,6 +38,11 @@ class EventFormValidationTests(TestCase):
             self.assertFalse(form.is_valid())
             self.assertIn('capacity', form.errors)
 
+    def test_zero_capacity_message_is_clear_when_nothing_is_booked(self):
+        form = EventForm(self.form_data(capacity=0))
+        form.is_valid()
+        self.assertEqual(form.errors['capacity'], ['Capacity must be at least 1.'])
+
     def test_rejects_negative_price(self):
         form = EventForm(self.form_data(price='-50'))
         self.assertFalse(form.is_valid())

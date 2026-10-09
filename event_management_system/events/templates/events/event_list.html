@@ -12,10 +12,12 @@
         </div>
     {% endif %}
 
-    <nav class="tabs" aria-label="Event timeframe">
-        <a href="{% querystring when=None page=None %}"{% if not show_past %} aria-current="page"{% endif %}>Upcoming</a>
-        <a href="{% querystring when='past' page=None %}"{% if show_past %} aria-current="page"{% endif %}>Past</a>
-    </nav>
+    <div>
+        <nav class="tabs" aria-label="Event timeframe">
+            <a href="{% querystring when=None page=None %}"{% if not show_past %} aria-current="page"{% endif %}>Upcoming</a>
+            <a href="{% querystring when='past' page=None %}"{% if show_past %} aria-current="page"{% endif %}>Past</a>
+        </nav>
+    </div>
 
     <form method="get" class="filter-bar" role="search" aria-label="Filter events">
         {% if show_past %}<input type="hidden" name="when" value="past">{% endif %}
@@ -38,7 +40,7 @@
             {% endif %}
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn">Search</button>
+            <button type="submit" class="btn">{% icon 'search' %} Search</button>
             {% if filtering %}
                 <a href="{% if show_past %}?when=past{% else %}{% url 'event_list' %}{% endif %}" class="btn btn-secondary">Clear filters</a>
             {% endif %}
@@ -57,40 +59,70 @@
         </p>
     {% endif %}
 
-    {% for event in events %}
-        <div class="card">
-            <h3>
-                {{ event.event_name }}
-                {% if event.is_cancelled %}
-                    <span class="badge badge-soldout">Cancelled</span>
-                {% elif not show_past %}
-                    {% if event.seats_left <= 0 %}
-                        <span class="badge badge-soldout">Sold out</span>
-                    {% elif event.seats_left <= 5 %}
-                        <span class="badge badge-low">Only {{ event.seats_left }} left</span>
-                    {% endif %}
-                {% endif %}
-            </h3>
-            <p><strong>Description:</strong> {{ event.description|truncatewords:30 }}</p>
-            <p><strong>Date:</strong> {{ event.date }}</p>
-            <p><strong>Time:</strong> {{ event.time }}</p>
-            <p><strong>Venue:</strong> {{ event.venue }}</p>
-            {% if not show_past %}
-                <p><strong>Seats Left:</strong> {{ event.seats_left }} of {{ event.capacity }}</p>
-            {% endif %}
-            <p><strong>Price:</strong> {{ event.price|price }}</p>
+    <div class="event-grid">
+        {% for event in events %}
+            <article class="card event-card{% if event.is_cancelled %} card-cancelled{% endif %}" aria-labelledby="event-{{ event.id }}-title">
+                <div class="event-banner {{ event|banner }}">
+                    <div class="date-chip" aria-hidden="true">
+                        <span class="month">{{ event.date|date:"M" }}</span>
+                        <span class="day">{{ event.date|date:"j" }}</span>
+                    </div>
+                    <div class="banner-tags">
+                        {% if event.is_cancelled %}
+                            <span class="badge badge-soldout">Cancelled</span>
+                        {% elif not show_past %}
+                            {% if event.seats_left <= 0 %}
+                                <span class="badge badge-soldout">Sold out</span>
+                            {% elif event.seats_left <= 5 %}
+                                <span class="badge badge-low">Only {{ event.seats_left }} left</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge badge-muted">Ended</span>
+                        {% endif %}
+                    </div>
+                </div>
 
-            <a href="{% url 'event_detail' event.id %}" class="btn">View Details</a>
-        </div>
-    {% empty %}
-        <div class="card">
-            <p>
-                {% if filtering %}No events match your filters.
-                {% elif show_past %}No past events.
-                {% else %}No upcoming events.{% endif %}
-            </p>
-        </div>
-    {% endfor %}
+                <div class="event-body">
+                    <h3 id="event-{{ event.id }}-title"><a href="{% url 'event_detail' event.id %}">{{ event.event_name }}</a></h3>
+                    <p class="event-description">{{ event.description|truncatewords:22 }}</p>
+
+                    <ul class="event-meta">
+                        <li>{% icon 'calendar' %}<span><span class="sr-only">Date: </span>{{ event.date|date:"D, j M Y" }}</span></li>
+                        <li>{% icon 'clock' %}<span><span class="sr-only">Time: </span>{{ event.time }}</span></li>
+                        <li>{% icon 'pin' %}<span><span class="sr-only">Venue: </span>{{ event.venue }}</span></li>
+                        {% if not show_past and not event.is_cancelled %}
+                            <li>{% icon 'users' %}<span>{{ event.seats_left }} of {{ event.capacity }} seats left</span></li>
+                        {% endif %}
+                    </ul>
+
+                    {% if not show_past and not event.is_cancelled %}
+                        <div class="seat-meter{% if event.seats_left <= 0 %} is-full{% elif event.seats_left <= 5 %} is-low{% endif %}" aria-hidden="true">
+                            <span style="width: {{ event|percent_booked }}%"></span>
+                        </div>
+                    {% endif %}
+
+                    <div class="event-footer">
+                        <span class="event-price">
+                            <span class="sr-only">Price: </span>{% if event.price == 0 %}<span class="is-free">Free</span>{% else %}{{ event.price|price }}{% endif %}
+                        </span>
+                        <a href="{% url 'event_detail' event.id %}" class="btn" aria-label="View details for {{ event.event_name }}">View Details</a>
+                    </div>
+                </div>
+            </article>
+        {% empty %}
+            <div class="empty-state">
+                <div class="empty-icon">{% icon 'search' %}</div>
+                <p>
+                    {% if filtering %}No events match your filters.
+                    {% elif show_past %}No past events.
+                    {% else %}No upcoming events.{% endif %}
+                </p>
+                {% if filtering %}
+                    <a href="{% if show_past %}?when=past{% else %}{% url 'event_list' %}{% endif %}" class="btn btn-secondary">Show all events</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
 
     {% if page.paginator.num_pages > 1 %}
         <nav class="pagination" aria-label="Pages">

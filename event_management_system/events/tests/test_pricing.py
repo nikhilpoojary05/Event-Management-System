@@ -97,8 +97,13 @@ class PriceDisplayTests(TestCase):
         free = make_event(event_name='Open Day', price=0)
         paid = make_event(event_name='Gala', price=Decimal('1200'))
         response = self.client.get(reverse('event_list'))
-        self.assertContains(response, '<strong>Price:</strong> Free', html=True)
-        self.assertContains(response, '<strong>Price:</strong> ₹1,200.00', html=True)
+        self.assertContains(
+            response, '<span class="event-price"><span class="sr-only">Price: </span>'
+            '<span class="is-free">Free</span></span>', html=True,
+        )
+        self.assertContains(
+            response, '<span class="event-price"><span class="sr-only">Price: </span>₹1,200.00</span>', html=True,
+        )
         self.assertNotContains(response, '₹0.00')
         self.assertContains(self.client.get(reverse('event_detail', args=[free.id])), 'Free')
         self.assertContains(self.client.get(reverse('event_detail', args=[paid.id])), '₹1,200.00')

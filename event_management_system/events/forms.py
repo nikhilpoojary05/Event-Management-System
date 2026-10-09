@@ -20,8 +20,18 @@ class EventForm(forms.ModelForm):
         model = Event
         fields = ['event_name', 'description', 'date', 'time', 'venue', 'capacity', 'price']
         widgets = {
+            'event_name': forms.TextInput(attrs={'placeholder': 'e.g. Campus Tech Fest 2026'}),
+            'description': forms.Textarea(attrs={'rows': 5, 'placeholder': 'What should attendees know?'}),
             'date': forms.DateInput(attrs={'type': 'date'}),
             'time': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'venue': forms.TextInput(attrs={'placeholder': 'e.g. Main Auditorium'}),
+            'capacity': forms.NumberInput(attrs={'placeholder': 'e.g. 100'}),
+            'price': forms.NumberInput(attrs={'step': '0.01', 'placeholder': '0 for a free event'}),
+        }
+        labels = {'event_name': 'Event name', 'price': 'Ticket price (₹)'}
+        help_texts = {
+            'capacity': 'Maximum number of tickets that can be booked.',
+            'price': 'Enter 0 to make the event free.',
         }
 
     def __init__(self, *args, min_capacity=1, **kwargs):
@@ -34,6 +44,8 @@ class EventForm(forms.ModelForm):
     def clean_capacity(self):
         capacity = self.cleaned_data['capacity']
         if capacity < self.min_capacity:
+            if self.min_capacity == 1:
+                raise forms.ValidationError('Capacity must be at least 1.')
             raise forms.ValidationError(
                 f'Capacity cannot be less than the {self.min_capacity} seats already booked.'
             )

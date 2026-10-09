@@ -4,11 +4,14 @@
 {% block title %}Book {{ event.event_name }}{% endblock %}
 
 {% block content %}
-    <h2 class="page-title">Book Event: {{ event.event_name }}</h2>
-
     <div class="form-card">
+        <div class="form-header">
+            <h2 class="page-title">Book Event: {{ event.event_name }}</h2>
+            <p>Choose your tickets and confirm.</p>
+        </div>
+
         {% if error %}
-            <div class="message-error">{{ error }}</div>
+            <div class="message-error" role="alert">{{ error }}</div>
         {% endif %}
 
         {% if form %}
@@ -21,14 +24,19 @@
 
             <form method="post">
                 {% csrf_token %}
-                {{ form.as_p }}
+                {% for error in form.non_field_errors %}
+                    <div class="message-error" role="alert">{{ error }}</div>
+                {% endfor %}
+                {% for field in form %}
+                    <div class="field">{{ field.as_field_group }}</div>
+                {% endfor %}
 
                 <p class="summary-total">
                     Total:
                     <strong id="booking-total" data-unit-price="{{ event.price|unlocalize }}" aria-live="polite">{{ total|price }}</strong>
                 </p>
 
-                <button type="submit" class="btn">Confirm Booking</button>
+                <button type="submit" class="btn btn-block">Confirm Booking</button>
             </form>
         {% elif my_waitlist_entry %}
             <p class="waitlist-status">
@@ -38,12 +46,14 @@
             </p>
             <a href="{% url 'my_bookings' %}" class="btn btn-secondary">View in My Bookings</a>
         {% elif waitlist_form %}
-            <p>Join the waitlist and we'll <strong>book your seats automatically</strong> and email you as soon as
+            <p class="form-note message-info">Join the waitlist and we'll <strong>book your seats automatically</strong> and email you as soon as
                enough seats free up. You can leave the waitlist at any time.</p>
             <form method="post" action="{% url 'join_waitlist' event.id %}">
                 {% csrf_token %}
-                {{ waitlist_form.as_p }}
-                <button type="submit" class="btn">Join Waitlist</button>
+                {% for field in waitlist_form %}
+                    <div class="field">{{ field.as_field_group }}</div>
+                {% endfor %}
+                <button type="submit" class="btn btn-block">Join Waitlist</button>
             </form>
         {% else %}
             <div class="message-error">Booking is not available for this event.</div>
@@ -51,7 +61,7 @@
     </div>
 
     <div class="footer-link">
-        <a href="{% url 'event_detail' event.id %}">Back to Event Detail</a>
+        <a href="{% url 'event_detail' event.id %}">&larr; Back to Event Detail</a>
     </div>
 
     {% if form %}

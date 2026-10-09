@@ -4,16 +4,15 @@
 {% block title %}My Events{% endblock %}
 
 {% block content %}
-    <h2 class="page-title">My Events</h2>
+    <div class="page-header">
+        <h2 class="page-title">My Events</h2>
+        {% if perms.events.add_event %}
+            <a href="{% url 'add_event' %}" class="btn">+ Add Event</a>
+        {% endif %}
+    </div>
 
     {% if sees_all %}
         <p class="info-bar">As an administrator you can manage all events.</p>
-    {% endif %}
-
-    {% if perms.events.add_event %}
-        <div class="actions page-actions">
-            <a href="{% url 'add_event' %}" class="btn">+ Add Event</a>
-        </div>
     {% endif %}
 
     {% if events %}
@@ -71,7 +70,9 @@
         {% endif %}
     {% else %}
         <div class="empty-state">
+            <div class="empty-icon">{% icon 'calendar' %}</div>
             <p>You haven't created any events yet.</p>
+            {% if perms.events.add_event %}<a href="{% url 'add_event' %}" class="btn">Create your first event</a>{% endif %}
         </div>
     {% endif %}
 {% endblock %}
