@@ -362,6 +362,16 @@ button:focus-visible {
     font-weight: 600;
 }
 
+.section-title {
+    margin: 28px 0 14px;
+    color: #1f2937;
+}
+
+.waitlist-status {
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
 .card {
     background: white;
     border-radius: 18px;

@@ -94,7 +94,8 @@ class BookEventViewTests(TestCase):
         self.client.force_login(self.user)
         for response in (self.client.get(self.url), self.client.post(self.url, {'number_of_tickets': 1})):
             self.assertContains(response, 'This event is full')
-            self.assertNotContains(response, 'name="number_of_tickets"')
+            self.assertNotContains(response, 'Confirm Booking')
+            self.assertContains(response, 'Join Waitlist')
         self.assertFalse(Booking.objects.filter(user=self.user).exists())
 
     def test_invalid_ticket_count_shows_error(self):

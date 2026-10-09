@@ -19,20 +19,23 @@ def _url(name, *args):
     return settings.SITE_URL + reverse(name, args=args)
 
 
-def _message(template, subject, booking, **extra):
-    user = booking.user
+def _message(template, subject, user, event, **extra):
     if not user.email:
         return None
     context = {
-        'booking': booking,
-        'event': booking.event,
+        'event': event,
         'name': user.get_full_name() or user.username,
-        'event_url': _url('event_detail', booking.event_id),
+        'event_url': _url('event_detail', event.id),
         'bookings_url': _url('my_bookings'),
         **extra,
     }
     body = render_to_string(f'events/email/{template}.txt', context)
     return (subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+
+
+def _booking_message(template, subject, booking, **extra):
+    return _message(template, f'{subject}: {booking.event.event_name}', booking.user, booking.event,
+                    booking=booking, **extra)
 
 
 def _send_on_commit(build_messages):
@@ -50,19 +53,19 @@ def _send_on_commit(build_messages):
 
 def booking_confirmed(booking):
     _send_on_commit(lambda: [
-        _message('booking_confirmed', f'Booking confirmed: {booking.event.event_name}', booking),
+        _booking_message('booking_confirmed', 'Booking confirmed', booking),
     ])
 
 
 def booking_cancelled(booking):
     _send_on_commit(lambda: [
-        _message('booking_cancelled', f'Booking cancelled: {booking.event.event_name}', booking),
+        _booking_message('booking_cancelled', 'Booking cancelled', booking),
     ])
 
 
 def event_cancelled(event, bookings):
     _send_on_commit(lambda: [
-        _message('event_cancelled', f'Event cancelled: {event.event_name}', booking)
+        _booking_message('event_cancelled', 'Event cancelled', booking)
         for booking in bookings
     ])
 
@@ -70,6 +73,25 @@ def event_cancelled(event, bookings):
 def event_updated(event, bookings, changes):
     """changes: list of (label, old value, new value) for the fields attendees care about."""
     _send_on_commit(lambda: [
-        _message('event_updated', f'Event updated: {event.event_name}', booking, changes=changes)
+        _booking_message('event_updated', 'Event updated', booking, changes=changes)
         for booking in bookings
+    ])
+
+
+def waitlist_promoted(bookings):
+    """Bookings just created from the waitlist."""
+    if not bookings:
+        return
+    _send_on_commit(lambda: [
+        _booking_message('waitlist_promoted', "You're in", booking)
+        for booking in bookings
+    ])
+
+
+def waitlist_event_cancelled(event, entries):
+    if not entries:
+        return
+    _send_on_commit(lambda: [
+        _message('waitlist_event_cancelled', f'Event cancelled: {event.event_name}', entry.user, event, entry=entry)
+        for entry in entries
     ])

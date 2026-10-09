@@ -108,6 +108,6 @@ class CancelBookingViewTests(TestCase):
         self.event.book(make_user('bob'), 7)
         self.client.force_login(self.user)
         detail = reverse('event_detail', args=[self.event.id])
-        self.assertContains(self.client.get(detail), 'Booking Closed')
+        self.assertContains(self.client.get(detail), 'Join Waitlist')
         self.client.post(self.url)
         self.assertContains(self.client.get(detail), 'Book Now')

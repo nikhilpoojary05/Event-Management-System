@@ -46,6 +46,35 @@
         <div class="empty-state"><p>No bookings yet.</p></div>
     {% endif %}
 
+    {% if waitlist %}
+        <h3 class="section-title">Waitlist ({{ waitlist|length }})</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <caption class="sr-only">Waitlist for {{ event.event_name }}</caption>
+                <thead>
+                    <tr>
+                        <th scope="col" class="num">#</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" class="num">Tickets wanted</th>
+                        <th scope="col">Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in waitlist %}
+                        <tr>
+                            <td class="num">{{ forloop.counter }}</td>
+                            <td>{{ entry.user.get_full_name|default:entry.user.username }}</td>
+                            <td>{% if entry.user.email %}<a href="mailto:{{ entry.user.email }}">{{ entry.user.email }}</a>{% else %}—{% endif %}</td>
+                            <td class="num">{{ entry.number_of_tickets }}</td>
+                            <td>{{ entry.created_at|date:"M j, Y H:i" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
     <div class="footer-link">
         <a href="{% url 'my_events' %}">Back to My Events</a>
     </div>

@@ -30,6 +30,21 @@
 
                 <button type="submit" class="btn">Confirm Booking</button>
             </form>
+        {% elif my_waitlist_entry %}
+            <p class="waitlist-status">
+                You're <strong>#{{ my_waitlist_entry.position }}</strong> on the waitlist for
+                {{ my_waitlist_entry.number_of_tickets }} ticket(s). We'll book them automatically and email you
+                if seats free up.
+            </p>
+            <a href="{% url 'my_bookings' %}" class="btn btn-secondary">View in My Bookings</a>
+        {% elif waitlist_form %}
+            <p>Join the waitlist and we'll <strong>book your seats automatically</strong> and email you as soon as
+               enough seats free up. You can leave the waitlist at any time.</p>
+            <form method="post" action="{% url 'join_waitlist' event.id %}">
+                {% csrf_token %}
+                {{ waitlist_form.as_p }}
+                <button type="submit" class="btn">Join Waitlist</button>
+            </form>
         {% else %}
             <div class="message-error">Booking is not available for this event.</div>
         {% endif %}
