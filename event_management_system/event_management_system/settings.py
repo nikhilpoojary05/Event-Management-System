@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +31,12 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS')
 CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
 
+# On Render, trust the service's own hostname automatically.
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -57,6 +64,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Serves collected static files (CSS) in production, without a separate web server.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -88,17 +97,23 @@ TEMPLATES = [
 WSGI_APPLICATION = 'event_management_system.wsgi.application'
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        # SQLite ignores select_for_update(); IMMEDIATE makes each transaction
-        # take the write lock up front so concurrent bookings are serialized.
-        'OPTIONS': {'transaction_mode': 'IMMEDIATE'},
-        # File-based test DB so concurrency tests can use real separate connections.
-        'TEST': {'NAME': BASE_DIR / 'test_db.sqlite3'},
+# PostgreSQL (or any database) via DATABASE_URL in production; SQLite locally.
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(conn_max_age=600, conn_health_checks=True),
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            # SQLite ignores select_for_update(); IMMEDIATE makes each transaction
+            # take the write lock up front so concurrent bookings are serialized.
+            'OPTIONS': {'transaction_mode': 'IMMEDIATE'},
+            # File-based test DB so concurrency tests can use real separate connections.
+            'TEST': {'NAME': BASE_DIR / 'test_db.sqlite3'},
+        }
+    }
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -129,6 +144,25 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # collectstatic target for production
 
+# Production uses the database cache so all worker processes share state such as
+# login-failure counters (create its table with `manage.py createcachetable`).
+if not DEBUG:
+    CACHES = {
+        'default': {'BACKEND': 'django.core.cache.backends.db.DatabaseCache', 'LOCATION': 'django_cache'},
+    }
+
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    # In production, serve compressed files with content hashes in their names
+    # so browsers can cache them forever. Requires running collectstatic.
+    'staticfiles': {
+        'BACKEND': (
+            'django.contrib.staticfiles.storage.StaticFilesStorage' if DEBUG
+            else 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        ),
+    },
+}
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -136,12 +170,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'event_list'
 
-# Email: printed to the runserver console in development, sent via SMTP in production.
+# Email: sent via SMTP when DJANGO_EMAIL_HOST is set; otherwise printed to the
+# console (the runserver terminal locally, the service logs in production).
+EMAIL_HOST = os.environ.get('DJANGO_EMAIL_HOST', '')
 EMAIL_BACKEND = os.environ.get(
     'DJANGO_EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend',
+    'django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST and not DEBUG
+    else 'django.core.mail.backends.console.EmailBackend',
 )
-EMAIL_HOST = os.environ.get('DJANGO_EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.environ.get('DJANGO_EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.environ.get('DJANGO_EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('DJANGO_EMAIL_HOST_PASSWORD', '')
@@ -150,6 +186,23 @@ EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_DEFAULT_FROM_EMAIL', 'Event Management <noreply@localhost>')
 
 # Absolute base URL used for links in emails.
-SITE_URL = os.environ.get('DJANGO_SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
+SITE_URL = os.environ.get(
+    'DJANGO_SITE_URL',
+    f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else 'http://127.0.0.1:8000',
+).rstrip('/')
+
+# Send warnings and errors (including failed emails and 500 errors) to the
+# console, so they show up in the hosting provider's logs.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {'format': '{asctime} {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+    },
+    'root': {'handlers': ['console'], 'level': os.environ.get('DJANGO_LOG_LEVEL', 'WARNING')},
+}
 
 TEST_RUNNER = 'event_management_system.test_runner.FastTestRunner'

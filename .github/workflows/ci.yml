@@ -14,7 +14,32 @@ concurrency:
 
 jobs:
   test:
+    name: test (${{ matrix.database }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # SQLite for local development, PostgreSQL as used in production.
+        database: [sqlite, postgres]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: events
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgres://postgres:postgres@localhost:5432/events' || '' }}
+
     defaults:
       run:
         working-directory: event_management_system
@@ -46,6 +71,17 @@ jobs:
         run: |
           export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')"
           python manage.py check --deploy --fail-level WARNING
+        env:
+          DJANGO_DEBUG: "False"
+          DJANGO_ALLOWED_HOSTS: example.com
+
+      - name: Production build steps work
+        run: |
+          export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')"
+          python manage.py collectstatic --no-input
+          python manage.py migrate --no-input
+          python manage.py createcachetable
+          python manage.py seed_demo
         env:
           DJANGO_DEBUG: "False"
           DJANGO_ALLOWED_HOSTS: example.com
