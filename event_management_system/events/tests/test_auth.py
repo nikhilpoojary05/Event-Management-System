@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.core.cache import cache
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from .. import login_throttle
 from ..models import Event
 from .factories import PASSWORD, make_user
 
@@ -161,3 +163,68 @@ class TestRunnerTests(TestCase):
         from event_management_system import settings as project_settings
         self.assertEqual(settings.PASSWORD_HASHERS, ['django.contrib.auth.hashers.MD5PasswordHasher'])
         self.assertFalse(hasattr(project_settings, 'PASSWORD_HASHERS'))
+
+
+REAL_CACHE = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'lockout-tests'}}
+
+
+@override_settings(CACHES=REAL_CACHE)  # the test runner uses a no-op cache elsewhere
+class LoginLockoutTests(TestCase):
+    url = reverse('login')
+
+    def setUp(self):
+        cache.clear()
+        make_user('alice')
+
+    def fail(self, username='alice', ip='10.0.0.1'):
+        return self.client.post(self.url, {'username': username, 'password': 'wrong'}, REMOTE_ADDR=ip)
+
+    def test_invalid_login_message(self):
+        self.assertContains(self.fail(), 'Invalid username or password.')
+
+    def test_locked_out_after_five_failures_even_with_correct_password(self):
+        for _ in range(login_throttle.MAX_FAILURES):
+            self.assertEqual(self.fail().status_code, 200)
+        response = self.client.post(self.url, {'username': 'alice', 'password': PASSWORD}, REMOTE_ADDR='10.0.0.1')
+        self.assertEqual(response.status_code, 429)
+        self.assertContains(response, 'Too many failed login attempts', status_code=429)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_lockout_applies_to_username_from_another_ip(self):
+        for i in range(login_throttle.MAX_FAILURES):
+            self.fail(ip=f'10.0.0.{i}')
+        response = self.client.post(self.url, {'username': 'alice', 'password': PASSWORD}, REMOTE_ADDR='10.9.9.9')
+        self.assertEqual(response.status_code, 429)
+
+    def test_lockout_applies_to_ip_trying_many_usernames(self):
+        for i in range(login_throttle.MAX_FAILURES):
+            self.fail(username=f'guess{i}')
+        response = self.client.post(self.url, {'username': 'alice', 'password': PASSWORD}, REMOTE_ADDR='10.0.0.1')
+        self.assertEqual(response.status_code, 429)
+
+    def test_success_resets_counter(self):
+        for _ in range(login_throttle.MAX_FAILURES - 1):
+            self.fail()
+        self.client.post(self.url, {'username': 'alice', 'password': PASSWORD}, REMOTE_ADDR='10.0.0.1')
+        self.client.logout()
+        for _ in range(login_throttle.MAX_FAILURES - 1):
+            self.fail()
+        response = self.client.post(self.url, {'username': 'alice', 'password': PASSWORD}, REMOTE_ADDR='10.0.0.1')
+        self.assertEqual(response.status_code, 302)
+
+    def test_lockout_expires(self):
+        for _ in range(login_throttle.MAX_FAILURES):
+            self.fail()
+        cache.clear()  # what expiry of the lockout window does
+        response = self.client.post(self.url, {'username': 'alice', 'password': PASSWORD}, REMOTE_ADDR='10.0.0.1')
+        self.assertEqual(response.status_code, 302)
+
+    def test_logged_in_user_is_redirected_away_from_login(self):
+        self.client.force_login(User.objects.get(username='alice'))
+        self.assertRedirects(self.client.get(self.url), reverse('event_list'))
+
+    def test_inactive_user_cannot_log_in(self):
+        User.objects.filter(username='alice').update(is_active=False)
+        response = self.client.post(self.url, {'username': 'alice', 'password': PASSWORD})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)

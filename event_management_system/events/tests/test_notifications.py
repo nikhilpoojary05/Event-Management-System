@@ -75,7 +75,7 @@ class BookingEmailTests(NotificationTestCase):
 
     def test_mail_failure_is_logged_and_does_not_break_booking(self):
         self.client.force_login(self.alice)
-        with mock.patch('events.notifications.send_mass_mail', side_effect=ConnectionRefusedError):
+        with mock.patch('events.notifications.get_connection', side_effect=ConnectionRefusedError):
             with self.assertLogs('events.notifications', level='ERROR') as logs:
                 with self.captureOnCommitCallbacks(execute=True):
                     response = self.client.post(reverse('book_event', args=[self.event.id]), {'number_of_tickets': 2})

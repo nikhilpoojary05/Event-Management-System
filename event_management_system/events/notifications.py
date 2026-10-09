@@ -7,10 +7,12 @@ logged rather than raised, so a mail outage never breaks a booking.
 import logging
 
 from django.conf import settings
-from django.core.mail import send_mass_mail
+from django.core.mail import EmailMessage, get_connection
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
+
+from . import calendar
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ def _url(name, *args):
     return settings.SITE_URL + reverse(name, args=args)
 
 
-def _message(template, subject, user, event, **extra):
+def _message(template, subject, user, event, attach_calendar=False, **extra):
     if not user.email:
         return None
     context = {
@@ -30,7 +32,10 @@ def _message(template, subject, user, event, **extra):
         **extra,
     }
     body = render_to_string(f'events/email/{template}.txt', context)
-    return (subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+    message = EmailMessage(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+    if attach_calendar:
+        message.attach(calendar.filename(event), calendar.build_ics(event), 'text/calendar')
+    return message
 
 
 def _booking_message(template, subject, booking, **extra):
@@ -44,7 +49,7 @@ def _send_on_commit(build_messages):
         if not messages:
             return
         try:
-            send_mass_mail(messages, fail_silently=False)
+            get_connection().send_messages(messages)
         except Exception:
             logger.exception('Failed to send %d notification email(s)', len(messages))
 
@@ -53,7 +58,7 @@ def _send_on_commit(build_messages):
 
 def booking_confirmed(booking):
     _send_on_commit(lambda: [
-        _booking_message('booking_confirmed', 'Booking confirmed', booking),
+        _booking_message('booking_confirmed', 'Booking confirmed', booking, attach_calendar=True),
     ])
 
 
@@ -83,7 +88,7 @@ def waitlist_promoted(bookings):
     if not bookings:
         return
     _send_on_commit(lambda: [
-        _booking_message('waitlist_promoted', "You're in", booking)
+        _booking_message('waitlist_promoted', "You're in", booking, attach_calendar=True)
         for booking in bookings
     ])
 

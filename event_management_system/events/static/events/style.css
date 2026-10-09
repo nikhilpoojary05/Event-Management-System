@@ -372,6 +372,16 @@ button:focus-visible {
     font-weight: 600;
 }
 
+.calendar-link {
+    color: #1d4ed8;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.calendar-link:hover {
+    text-decoration: underline;
+}
+
 .card {
     background: white;
     border-radius: 18px;

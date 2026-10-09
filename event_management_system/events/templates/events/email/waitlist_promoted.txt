@@ -7,5 +7,7 @@ Booking: #{{ booking.id }}
 Tickets: {{ booking.number_of_tickets }} × {{ booking.unit_price|price }}
 Total:   {{ booking.total_price|price }}
 
+The attached calendar file (.ics) adds the event to your calendar.
+
 If you can no longer attend, please cancel so the seats go to the next person: {{ bookings_url }}
 {% endautoescape %}

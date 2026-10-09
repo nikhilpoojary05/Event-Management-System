@@ -1,16 +1,18 @@
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.views import LoginView
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateformat import format as format_date
 from django.utils.dateformat import time_format
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import notifications
+from . import calendar, login_throttle, notifications
 from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm, WaitlistForm
 from .models import AlreadyWaitlisted, Booking, Event, EventCancelled, EventInPast, NotEnoughSeats, WaitlistEntry
 from .templatetags.events_extras import price
@@ -71,29 +73,39 @@ def register(request):
     return render(request, 'events/register.html', {'form': form})
 
 
-def user_login(request):
-    next_url = request.POST.get('next') or request.GET.get('next', '')
-    if not url_has_allowed_host_and_scheme(
-        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        next_url = ''
+class LoginForm(AuthenticationForm):
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        'invalid_login': 'Invalid username or password.',
+    }
 
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
 
-        user = authenticate(request, username=username, password=password)
+class UserLoginView(LoginView):
+    """Django's LoginView (safe ?next= handling, inactive-user checks) plus lockout."""
 
-        if user is not None:
-            login(request, user)
-            return redirect(next_url or 'event_list')
-        else:
-            return render(request, 'events/login.html', {
-                'error': 'Invalid username or password',
-                'next': next_url
-            })
+    template_name = 'events/login.html'
+    authentication_form = LoginForm
+    redirect_authenticated_user = True
 
-    return render(request, 'events/login.html', {'next': next_url})
+    def post(self, request, *args, **kwargs):
+        username = request.POST.get('username', '')
+        if login_throttle.is_locked_out(request, username):
+            minutes = login_throttle.LOCKOUT_SECONDS // 60
+            form = self.get_form()
+            form.errors.clear()
+            form.add_error(None, f'Too many failed login attempts. Please try again in {minutes} minutes.')
+            response = self.render_to_response(self.get_context_data(form=form))
+            response.status_code = 429
+            return response
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        login_throttle.reset(self.request, form.get_user().get_username())
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        login_throttle.record_failure(self.request, self.request.POST.get('username', ''))
+        return super().form_invalid(form)
 
 
 @require_POST
@@ -342,3 +354,11 @@ def leave_waitlist(request, entry_id):
     else:
         messages.error(request, 'You are no longer on this waitlist.')
     return redirect('my_bookings')
+
+
+def event_calendar(request, event_id):
+    """Download the event as an .ics file for Google Calendar, Outlook, Apple Calendar, etc."""
+    event = get_object_or_404(Event, id=event_id)
+    response = HttpResponse(calendar.build_ics(event), content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{calendar.filename(event)}"'
+    return response
