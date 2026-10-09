@@ -9,9 +9,15 @@ from django.test import SimpleTestCase
 PRODUCTION_KEY = 'x7#Lq2!vR9@pZ4$wK8^mN3&bT6*yH1(cF5)jD0_gS-uE+aW=oI|eP~rU`lV<nQ>'
 
 
+def _clean_environ():
+    """The current environment minus anything that configures the app (e.g. CI's DATABASE_URL)."""
+    app_vars = {'DATABASE_URL', 'RENDER_EXTERNAL_HOSTNAME'}
+    return {k: v for k, v in os.environ.items() if not k.startswith('DJANGO_') and k not in app_vars}
+
+
 def run_settings(env, expr):
     """Load settings in a fresh interpreter with the given environment."""
-    clean = {k: v for k, v in os.environ.items() if not k.startswith('DJANGO_')}
+    clean = _clean_environ()
     clean.update(env, DJANGO_SETTINGS_MODULE='event_management_system.settings')
     code = (
         'import json, django; django.setup(); from django.conf import settings as s; '
@@ -78,8 +84,42 @@ class SettingsFromEnvironmentTests(SimpleTestCase):
             False, 'Events <hi@example.com>', 'https://events.example.com',
         ])
 
+    def test_sqlite_by_default_with_immediate_transactions(self):
+        engine, mode = self.load({}, "[s.DATABASES['default']['ENGINE'], "
+                                     "s.DATABASES['default']['OPTIONS']['transaction_mode']]")
+        self.assertEqual((engine, mode), ('django.db.backends.sqlite3', 'IMMEDIATE'))
+
+    def test_database_url_selects_postgres(self):
+        db = self.load({'DATABASE_URL': 'postgres://app:pw@db.example.com:5432/events'},
+                       "{k: s.DATABASES['default'][k] for k in ('ENGINE', 'NAME', 'HOST', 'PORT', 'CONN_MAX_AGE')}")
+        self.assertEqual(db, {'ENGINE': 'django.db.backends.postgresql', 'NAME': 'events',
+                              'HOST': 'db.example.com', 'PORT': 5432, 'CONN_MAX_AGE': 600})
+
+    def test_whitenoise_and_production_storage_cache(self):
+        dev = self.load({}, "[s.MIDDLEWARE[1], s.STORAGES['staticfiles']['BACKEND'], "
+                            "s.CACHES['default']['BACKEND'] if hasattr(s, 'CACHES') else None]")
+        self.assertEqual(dev[0], 'whitenoise.middleware.WhiteNoiseMiddleware')
+        self.assertEqual(dev[1], 'django.contrib.staticfiles.storage.StaticFilesStorage')
+        prod = self.load({'DJANGO_DEBUG': 'False', 'DJANGO_SECRET_KEY': PRODUCTION_KEY},
+                         "[s.STORAGES['staticfiles']['BACKEND'], s.CACHES['default']['BACKEND']]")
+        self.assertEqual(prod, ['whitenoise.storage.CompressedManifestStaticFilesStorage',
+                                'django.core.cache.backends.db.DatabaseCache'])
+
+    def test_render_hostname_is_trusted_automatically(self):
+        values = self.load(
+            {'DJANGO_DEBUG': 'False', 'DJANGO_SECRET_KEY': PRODUCTION_KEY,
+             'RENDER_EXTERNAL_HOSTNAME': 'event-management.onrender.com'},
+            '[s.ALLOWED_HOSTS, s.CSRF_TRUSTED_ORIGINS, s.SITE_URL]',
+        )
+        self.assertEqual(values, [['event-management.onrender.com'], ['https://event-management.onrender.com'],
+                                  'https://event-management.onrender.com'])
+
+    def test_production_without_smtp_prints_emails_to_logs(self):
+        backend = self.load({'DJANGO_DEBUG': 'False', 'DJANGO_SECRET_KEY': PRODUCTION_KEY}, 's.EMAIL_BACKEND')
+        self.assertEqual(backend, 'django.core.mail.backends.console.EmailBackend')
+
     def test_production_passes_deploy_checklist(self):
-        clean = {k: v for k, v in os.environ.items() if not k.startswith('DJANGO_')}
+        clean = _clean_environ()
         clean.update(DJANGO_DEBUG='False', DJANGO_SECRET_KEY=PRODUCTION_KEY, DJANGO_ALLOWED_HOSTS='example.com')
         result = subprocess.run(
             [sys.executable, 'manage.py', 'check', '--deploy', '--fail-level', 'WARNING'],

@@ -26,7 +26,8 @@ A Django web application for browsing, booking, and managing events online. Atte
 - Python 3.13
 - Django 6
 - HTML, CSS (no framework), with [Inter](https://fonts.google.com/specimen/Inter) and [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) from Google Fonts
-- SQLite
+- SQLite (development), PostgreSQL (production)
+- gunicorn + WhiteNoise for deployment
 
 ## ⚙️ Installation
 
@@ -87,7 +88,7 @@ cd event_management_system
 python manage.py test events
 ```
 
-GitHub Actions runs the linter, Django system checks, a migrations check, and the test suite on every push to `main` and on every pull request (see `.github/workflows/ci.yml`).
+GitHub Actions runs the linter, Django system checks, a migrations check, the production deployment checklist and build steps, and the test suite, on both SQLite and PostgreSQL, on every push to `main` and on every pull request (see `.github/workflows/ci.yml`).
 
 ## 📁 Project Structure
 
@@ -97,6 +98,8 @@ Event-Management-System/
 ├── requirements-dev.txt           # + development tools
 ├── pyproject.toml                 # ruff configuration
 ├── .github/workflows/ci.yml       # CI pipeline
+├── render.yaml                    # Render deployment blueprint
+├── build.sh                       # build steps run on each deploy
 └── event_management_system/
     ├── manage.py
     ├── event_management_system/   # project settings and URLs
@@ -113,24 +116,58 @@ Event-Management-System/
 
 ## 🌐 Deploying to Production
 
-Locally the app needs no configuration: it runs in debug mode with a development-only secret key. In production, configure it with environment variables:
+### Option A: Render (free tier, about 10 minutes)
+
+The repository includes a [Render Blueprint](render.yaml) that creates the web app **and** a PostgreSQL database.
+
+1. Push this repository to GitHub (already done if you're reading this there).
+2. Sign in at [render.com](https://render.com) with your GitHub account.
+3. Click **New → Blueprint**, pick this repository, and click **Apply**.
+4. When asked, enter the **admin account** to create: `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL` and `DJANGO_SUPERUSER_PASSWORD`.
+5. Wait for the first deploy (a few minutes). Your site will be at `https://<service-name>.onrender.com`, and you can log in to `/admin/` with the account from step 4.
+
+Everything else is configured automatically: a generated secret key, the database connection, HTTPS settings, allowed hosts, and links in emails. Each deploy runs [`build.sh`](build.sh), which installs dependencies, collects static files, applies migrations, creates your admin account if it doesn't exist yet, and adds the demo events (set `DJANGO_SEED_DEMO` to `False` to stop that).
+
+**Emails:** until you add SMTP settings (below) in the service's **Environment** tab, emails are written to the service **Logs** instead of being sent.
+
+> **Free-tier notes** (check [Render's pricing page](https://render.com/pricing) for current limits): free web services sleep when idle, so the first request after a quiet period is slow, and free PostgreSQL databases are time-limited. Upgrade the database plan to keep data long-term.
+
+### Option B: any other host
+
+The app is a standard Django project served by **gunicorn**, with static files served by **WhiteNoise**:
+
+```bash
+pip install -r requirements.txt
+cd event_management_system
+python manage.py collectstatic --no-input
+python manage.py migrate --no-input
+python manage.py createcachetable
+gunicorn event_management_system.wsgi:application
+```
+
+### Environment variables
+
+Locally the app needs no configuration: it runs in debug mode with SQLite and a development-only secret key. In production, configure it with environment variables:
 
 | Variable | Required | Description |
 |---|---|---|
-| `DJANGO_DEBUG` | yes | Set to `False`. This also enables secure cookies, HTTPS redirect and HSTS. |
+| `DJANGO_DEBUG` | yes | Set to `False`. This also enables secure cookies, HTTPS redirect, HSTS, compressed static files and a shared database cache. |
 | `DJANGO_SECRET_KEY` | yes | A long random string. The app refuses to start without it when `DJANGO_DEBUG=False`. |
-| `DJANGO_ALLOWED_HOSTS` | yes | Comma-separated domain names, e.g. `example.com,www.example.com`. |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | if needed | Comma-separated origins with scheme, e.g. `https://example.com`. |
-| `DJANGO_BEHIND_HTTPS_PROXY` | if needed | `True` when a proxy/load balancer terminates HTTPS and sets `X-Forwarded-Proto`. |
+| `DATABASE_URL` | recommended | e.g. `postgres://user:password@host:5432/dbname`. Without it, SQLite is used. |
+| `DJANGO_ALLOWED_HOSTS` | yes* | Comma-separated domain names, e.g. `example.com,www.example.com`. *Automatic on Render. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | if needed | Comma-separated origins with scheme, e.g. `https://example.com`. Automatic on Render. |
+| `DJANGO_BEHIND_HTTPS_PROXY` | if needed | `True` when a proxy or load balancer terminates HTTPS and sets `X-Forwarded-Proto` (Render, Heroku, Railway…). |
+| `DJANGO_SITE_URL` | yes* | Public URL used for links in emails, e.g. `https://events.example.com`. *Automatic on Render. |
 | `DJANGO_SECURE_SSL_REDIRECT` | no | Defaults to `True`; set `False` if your host already redirects to HTTPS. |
 | `DJANGO_SECURE_HSTS_SECONDS` | no | HSTS duration; defaults to 30 days. |
 | `DJANGO_SECURE_HSTS_PRELOAD` | no | Defaults to `False`. Only enable once HTTPS is permanent, as it is hard to undo. |
-| `DJANGO_SITE_URL` | yes | Public URL of the site, used for links in emails, e.g. `https://events.example.com`. |
-| `DJANGO_EMAIL_HOST` | yes | SMTP server, e.g. `smtp.gmail.com`. |
+| `DJANGO_EMAIL_HOST` | for email | SMTP server, e.g. `smtp.gmail.com`. Without it, emails are printed to the logs. |
 | `DJANGO_EMAIL_PORT` | no | Defaults to `587`. |
 | `DJANGO_EMAIL_HOST_USER` / `DJANGO_EMAIL_HOST_PASSWORD` | if needed | SMTP login. |
 | `DJANGO_EMAIL_USE_TLS` | no | Defaults to `True`. |
-| `DJANGO_DEFAULT_FROM_EMAIL` | yes | Sender, e.g. `Events <noreply@example.com>`. |
+| `DJANGO_DEFAULT_FROM_EMAIL` | for email | Sender, e.g. `Events <noreply@example.com>`. |
+| `DJANGO_SUPERUSER_USERNAME` / `_EMAIL` / `_PASSWORD` | no | Admin account created by `python manage.py ensure_superuser` (never overwrites an existing account). |
+| `DJANGO_LOG_LEVEL` | no | Defaults to `WARNING`. |
 
 Generate a secret key with:
 
@@ -138,11 +175,4 @@ Generate a secret key with:
 python -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
-Then collect static files and verify the configuration:
-
-```bash
-python manage.py collectstatic
-python manage.py check --deploy
-```
-
-> SQLite works for small deployments. For more traffic, switch `DATABASES` to PostgreSQL.
+Verify a production configuration with `python manage.py check --deploy`.
