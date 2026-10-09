@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Booking, Event
+from .models import Booking, Event, WaitlistEntry
 
 
 @admin.register(Event)
@@ -45,3 +45,17 @@ class BookingAdmin(admin.ModelAdmin):
     @admin.display(description='Total')
     def total(self, booking):
         return booking.total_price
+
+
+@admin.register(WaitlistEntry)
+class WaitlistEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'event', 'number_of_tickets', 'status', 'created_at', 'booking')
+    list_filter = ('status', 'event')
+    search_fields = ('user__username', 'user__email', 'event__event_name')
+    list_select_related = ('user', 'event', 'booking')
+    ordering = ('event', 'created_at')
+    # Promotion creates bookings; editing these by hand would bypass that logic.
+    readonly_fields = ('user', 'event', 'status', 'created_at', 'booking')
+
+    def has_add_permission(self, request):
+        return False  # entries are created by users joining the waitlist

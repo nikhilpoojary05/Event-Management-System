@@ -1,9 +1,10 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator
 from django.utils import timezone
 
-from .models import Booking, Event
+from .models import Booking, Event, WaitlistEntry
 
 
 class RegisterForm(UserCreationForm):
@@ -57,6 +58,21 @@ class BookingForm(forms.ModelForm):
         if max_tickets is not None:
             # Browser hint only; Event.book() enforces capacity atomically.
             self.fields['number_of_tickets'].widget.attrs['max'] = max_tickets
+
+
+class WaitlistForm(forms.ModelForm):
+    class Meta:
+        model = WaitlistEntry
+        fields = ['number_of_tickets']
+
+    def __init__(self, *args, max_tickets=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields['number_of_tickets']
+        field.widget.attrs['min'] = 1
+        if max_tickets is not None:
+            field.max_value = max_tickets
+            field.widget.attrs['max'] = max_tickets
+            field.validators.append(MaxValueValidator(max_tickets))
 
 
 class EventFilterForm(forms.Form):

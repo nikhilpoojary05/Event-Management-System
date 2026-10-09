@@ -30,9 +30,28 @@
                 </div>
             {% endfor %}
         </div>
-    {% else %}
+    {% elif not waitlist %}
         <div class="empty-state">
             <p>You have no bookings yet.</p>
+        </div>
+    {% endif %}
+
+    {% if waitlist %}
+        <h3 class="section-title">Waitlist</h3>
+        <div class="grid">
+            {% for entry in waitlist %}
+                <div class="card">
+                    <h3>{{ entry.event.event_name }}</h3>
+                    <p><strong>Event Date:</strong> {{ entry.event.date }}, {{ entry.event.time }}</p>
+                    <p><strong>Tickets wanted:</strong> {{ entry.number_of_tickets }}</p>
+                    <p><strong>Position:</strong> #{{ entry.position }} in line</p>
+                    <p class="form-note">We'll book automatically and email you if seats free up.</p>
+                    <form method="post" action="{% url 'leave_waitlist' entry.id %}" class="actions">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary">Leave Waitlist</button>
+                    </form>
+                </div>
+            {% endfor %}
         </div>
     {% endif %}
 {% endblock %}

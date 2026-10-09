@@ -109,7 +109,7 @@ class EventDetailTests(TestCase):
         self.event.book(make_user('bob'), 10)
         self.client.force_login(make_user())
         response = self.client.get(self.url)
-        self.assertContains(response, 'Booking Closed')
+        self.assertContains(response, 'Join Waitlist')
         self.assertNotContains(response, 'Book Now')
 
 

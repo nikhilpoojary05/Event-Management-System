@@ -1,0 +1,7 @@
+{% autoescape off %}Hi {{ name }},
+
+You were on the waitlist for {{ entry.number_of_tickets }} ticket(s) to the event below, but it has been cancelled by the organizer, so the waitlist is closed.
+
+{% include "events/email/_event_details.txt" %}
+Browse other events: {{ event_url }}
+{% endautoescape %}

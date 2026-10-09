@@ -125,7 +125,63 @@ class Event(models.Model):
             for booking in affected:
                 booking.status = Booking.Status.CANCELLED
             notifications.event_cancelled(event, affected)
+
+            waiting = event.waitlist_entries.filter(status=WaitlistEntry.Status.WAITING)
+            waitlisted = list(waiting.select_related('user', 'event'))
+            waiting.update(status=WaitlistEntry.Status.EVENT_CANCELLED)
+            notifications.waitlist_event_cancelled(event, waitlisted)
             return len(affected)
+
+    def promote_waitlist(self):
+        """Book waiting users into free seats, in the order they joined.
+
+        Anyone whose request fits the seats left is booked; a request too large
+        for the seats currently free keeps its place in line. Runs under the
+        event row lock, like book(), so freed seats are never handed out twice.
+        Returns the bookings created.
+        """
+        with transaction.atomic():
+            event = Event.objects.select_for_update().get(pk=self.pk)
+            if event.is_cancelled or event.is_past:
+                return []
+            seats = event.remaining_seats()
+            promoted = []
+            waiting = event.waitlist_entries.filter(status=WaitlistEntry.Status.WAITING)
+            for entry in waiting.select_related('user').order_by('created_at', 'id'):
+                if seats <= 0:
+                    break
+                if entry.number_of_tickets > seats:
+                    continue
+                booking = Booking.objects.create(
+                    user=entry.user, event=event,
+                    number_of_tickets=entry.number_of_tickets, unit_price=event.price,
+                )
+                entry.status = WaitlistEntry.Status.BOOKED
+                entry.booking = booking
+                entry.save(update_fields=['status', 'booking'])
+                seats -= entry.number_of_tickets
+                promoted.append(booking)
+            notifications.waitlist_promoted(promoted)
+            return promoted
+
+    def join_waitlist(self, user, number_of_tickets):
+        """Add user to the waitlist, or raise AlreadyWaitlisted / EventCancelled / EventInPast.
+
+        If seats happen to be free (e.g. freed just now), the entry is promoted
+        immediately. Returns the entry.
+        """
+        with transaction.atomic():
+            event = Event.objects.select_for_update().get(pk=self.pk)
+            if event.is_cancelled:
+                raise EventCancelled
+            if event.is_past:
+                raise EventInPast
+            if event.waitlist_entries.filter(user=user, status=WaitlistEntry.Status.WAITING).exists():
+                raise AlreadyWaitlisted
+            entry = WaitlistEntry.objects.create(user=user, event=event, number_of_tickets=number_of_tickets)
+            event.promote_waitlist()
+            entry.refresh_from_db()
+            return entry
 
 
 class BookingError(Exception):
@@ -141,6 +197,10 @@ class EventInPast(BookingError):
 
 
 class EventCancelled(BookingError):
+    pass
+
+
+class AlreadyWaitlisted(BookingError):
     pass
 
 
@@ -179,4 +239,48 @@ class Booking(models.Model):
             self.status = self.Status.CANCELLED
             self.save(update_fields=['status'])
             notifications.booking_cancelled(self)
+            self.event.promote_waitlist()
+        return True
+
+
+class WaitlistEntry(models.Model):
+    class Status(models.TextChoices):
+        WAITING = 'Waiting', 'Waiting'
+        BOOKED = 'Booked', 'Booked from waitlist'
+        LEFT = 'Left', 'Left waitlist'
+        EVENT_CANCELLED = 'EventCancelled', 'Event cancelled'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='waitlist_entries')
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='waitlist_entries')
+    number_of_tickets = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.WAITING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    booking = models.OneToOneField(
+        Booking, on_delete=models.SET_NULL, null=True, blank=True, related_name='waitlist_entry'
+    )
+
+    class Meta:
+        verbose_name_plural = 'waitlist entries'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'event'], condition=Q(status='Waiting'), name='one_active_waitlist_entry_per_user',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} waiting for {self.event.event_name} ({self.number_of_tickets})"
+
+    @property
+    def position(self):
+        """1-based place in line among people still waiting."""
+        return WaitlistEntry.objects.filter(
+            event_id=self.event_id, status=self.Status.WAITING,
+        ).filter(Q(created_at__lt=self.created_at) | Q(created_at=self.created_at, id__lt=self.id)).count() + 1
+
+    def leave(self):
+        """Leave the waitlist. Returns False if no longer waiting."""
+        if self.status != self.Status.WAITING:
+            return False
+        self.status = self.Status.LEFT
+        self.save(update_fields=['status'])
         return True

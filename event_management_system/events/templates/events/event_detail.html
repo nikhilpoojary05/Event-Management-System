@@ -16,7 +16,7 @@
         <p><strong>Time:</strong> {{ event.time }}</p>
         <p><strong>Venue:</strong> {{ event.venue }}</p>
         <p><strong>Total Capacity:</strong> {{ event.capacity }}</p>
-        <p><strong>Available Seats:</strong> {{ remaining_seats }}</p>
+        <p><strong>Available Seats:</strong> {{ remaining_seats }}{% if waiting_count %} ({{ waiting_count }} on the waitlist){% endif %}</p>
         <p><strong>Price:</strong> {{ event.price|price }}</p>
 
         <div class="actions">
@@ -27,8 +27,10 @@
             {% elif user.is_authenticated %}
                 {% if remaining_seats > 0 %}
                     <a href="{% url 'book_event' event.id %}" class="btn">Book Now</a>
+                {% elif my_waitlist_entry %}
+                    <span class="waitlist-status">You're #{{ my_waitlist_entry.position }} on the waitlist.</span>
                 {% else %}
-                    <button class="btn btn-secondary" disabled>Booking Closed</button>
+                    <a href="{% url 'book_event' event.id %}" class="btn">Join Waitlist</a>
                 {% endif %}
             {% else %}
                 <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn">Login to Book</a>

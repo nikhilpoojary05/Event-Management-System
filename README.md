@@ -12,6 +12,7 @@ A Django web application for browsing, booking, and managing events online. Atte
 - Event booking with capacity checks that are safe against simultaneous bookings
 - Booking summary with a live total price; each booking keeps the ticket price it was booked at
 - Cancel bookings up to the event date (seats are released immediately)
+- Waitlist for sold-out events: when seats free up, waiting users are booked automatically in the order they joined and emailed
 - Email notifications: booking confirmed or cancelled, and event cancelled or rescheduled (date, time or venue changed)
 - "My Bookings" page with booking status
 - Event creation restricted to organizers (users with the *Can add event* permission)
@@ -92,7 +93,8 @@ Event-Management-System/
     ├── manage.py
     ├── event_management_system/   # project settings and URLs
     └── events/                    # the app
-        ├── models.py              # Event, Booking (booking/seat logic lives here)
+        ├── models.py              # Event, Booking, WaitlistEntry (booking/seat logic lives here)
+        ├── notifications.py       # email notifications
         ├── views.py
         ├── forms.py
         ├── admin.py

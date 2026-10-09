@@ -1,0 +1,11 @@
+{% load events_extras %}{% autoescape off %}Hi {{ name }},
+
+Good news: seats opened up and you're off the waitlist. We've booked them for you.
+
+{% include "events/email/_event_details.txt" %}
+Booking: #{{ booking.id }}
+Tickets: {{ booking.number_of_tickets }} × {{ booking.unit_price|price }}
+Total:   {{ booking.total_price|price }}
+
+If you can no longer attend, please cancel so the seats go to the next person: {{ bookings_url }}
+{% endautoescape %}

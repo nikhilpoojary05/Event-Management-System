@@ -11,8 +11,8 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from . import notifications
-from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm
-from .models import Booking, Event, EventCancelled, EventInPast, NotEnoughSeats
+from .forms import BookingForm, EventFilterForm, EventForm, RegisterForm, WaitlistForm
+from .models import AlreadyWaitlisted, Booking, Event, EventCancelled, EventInPast, NotEnoughSeats, WaitlistEntry
 from .templatetags.events_extras import price
 
 
@@ -46,7 +46,15 @@ def event_detail(request, event_id):
         'event': event,
         'remaining_seats': event.remaining_seats(),
         'can_manage': event.can_manage(request.user),
+        'waiting_count': event.waitlist_entries.filter(status=WaitlistEntry.Status.WAITING).count(),
+        'my_waitlist_entry': _waitlist_entry_for(request.user, event),
     })
+
+
+def _waitlist_entry_for(user, event):
+    if not user.is_authenticated:
+        return None
+    return event.waitlist_entries.filter(user=user, status=WaitlistEntry.Status.WAITING).first()
 
 
 def register(request):
@@ -109,7 +117,13 @@ def book_event(request, event_id):
 
     remaining_seats = event.remaining_seats()
     if remaining_seats <= 0:
-        return closed('This event is full. Booking is closed.')
+        return render(request, 'events/book_event.html', {
+            'event': event,
+            'form': None,
+            'error': 'This event is full.',
+            'waitlist_form': WaitlistForm(max_tickets=event.capacity),
+            'my_waitlist_entry': _waitlist_entry_for(request.user, event),
+        })
 
     if request.method == 'POST':
         form = BookingForm(request.POST, max_tickets=remaining_seats)
@@ -152,7 +166,12 @@ def my_bookings(request):
         .select_related('event')
         .order_by('-booking_date')
     )
-    return render(request, 'events/my_bookings.html', {'bookings': bookings})
+    waitlist = (
+        WaitlistEntry.objects.filter(user=request.user, status=WaitlistEntry.Status.WAITING)
+        .select_related('event')
+        .order_by('event__date')
+    )
+    return render(request, 'events/my_bookings.html', {'bookings': bookings, 'waitlist': waitlist})
 
 
 @login_required
@@ -243,8 +262,11 @@ def edit_event(request, event_id):
                     if changes:
                         attendees = event.booking_set.filter(status=Booking.Status.BOOKED)
                         notifications.event_updated(event, list(attendees.select_related('user', 'event')), changes)
+                    promoted = event.promote_waitlist()  # a capacity increase may free seats
             if not form.errors:
                 messages.success(request, f'Event "{event.event_name}" has been updated.')
+                if promoted:
+                    messages.info(request, f'{len(promoted)} waitlisted booking(s) were confirmed.')
                 return redirect('event_detail', event_id=event.id)
     else:
         form = EventForm(instance=event, min_capacity=event.booked_seats())
@@ -263,6 +285,8 @@ def event_attendees(request, event_id):
         'tickets_sold': sum(b.number_of_tickets for b in active),
         'revenue': sum((b.total_price for b in active), 0),
         'attendee_count': len({b.user_id for b in active}),
+        'waitlist': event.waitlist_entries.filter(status=WaitlistEntry.Status.WAITING)
+                    .select_related('user').order_by('created_at', 'id'),
     })
 
 
@@ -279,3 +303,42 @@ def cancel_event(request, event_id):
             f'Event "{event.event_name}" has been cancelled, along with {cancelled} booking(s).'
         )
     return redirect('my_events')
+
+
+@login_required
+@require_POST
+def join_waitlist(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    form = WaitlistForm(request.POST, max_tickets=event.capacity)
+    if not form.is_valid():
+        messages.error(request, ' '.join(form.errors.get('number_of_tickets', ['Invalid number of tickets.'])))
+        return redirect('book_event', event_id=event.id)
+    try:
+        entry = event.join_waitlist(request.user, form.cleaned_data['number_of_tickets'])
+    except AlreadyWaitlisted:
+        messages.info(request, "You're already on the waitlist for this event.")
+        return redirect('my_bookings')
+    except (EventCancelled, EventInPast):
+        messages.error(request, 'This event is no longer taking bookings.')
+        return redirect('event_detail', event_id=event.id)
+
+    if entry.status == WaitlistEntry.Status.BOOKED:
+        messages.success(request, f'Seats were available, so we booked {entry.number_of_tickets} ticket(s) for you.')
+    else:
+        messages.success(
+            request,
+            f"You're #{entry.position} on the waitlist for {event.event_name}. "
+            "We'll book your seats automatically and email you if they free up."
+        )
+    return redirect('my_bookings')
+
+
+@login_required
+@require_POST
+def leave_waitlist(request, entry_id):
+    entry = get_object_or_404(WaitlistEntry.objects.select_related('event'), id=entry_id, user=request.user)
+    if entry.leave():
+        messages.success(request, f'You have left the waitlist for {entry.event.event_name}.')
+    else:
+        messages.error(request, 'You are no longer on this waitlist.')
+    return redirect('my_bookings')
