@@ -3,9 +3,12 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-    <h2 class="page-title">Login</h2>
+    <div class="form-card narrow">
+        <div class="form-header">
+            <h2 class="page-title">Welcome back</h2>
+            <p>Log in to book tickets and manage your events.</p>
+        </div>
 
-    <div class="form-card">
         {% for error in form.non_field_errors %}
             <div class="message-error" role="alert">{{ error }}</div>
         {% endfor %}
@@ -15,19 +18,19 @@
             {% if next %}
                 <input type="hidden" name="next" value="{{ next }}">
             {% endif %}
-            <p>
+            <div class="field">
                 <label for="{{ form.username.id_for_label }}">Username</label>
                 {{ form.username }}
-            </p>
+            </div>
 
-            <p>
+            <div class="field">
                 <label for="{{ form.password.id_for_label }}">Password</label>
                 {{ form.password }}
-            </p>
+            </div>
 
-            <button type="submit" class="btn">Login</button>
+            <button type="submit" class="btn btn-block">Login</button>
         </form>
 
-        <p class="form-note">Don't have an account? <a href="{% url 'register' %}">Register</a></p>
+        <p class="form-footer">Don't have an account? <a href="{% url 'register' %}">Register</a></p>
     </div>
 {% endblock %}

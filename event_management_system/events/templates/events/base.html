@@ -1,17 +1,26 @@
 <!DOCTYPE html>
-{% load static %}
+{% load static events_extras %}
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>{% block title %}Home{% endblock %} | Event Management</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%9F%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
     <link rel="stylesheet" href="{% static 'events/style.css' %}">
 </head>
 <body>
-    <div class="container">
-        <header class="navbar">
-            <h1>Event Management</h1>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <header class="site-header">
+        <div class="navbar">
+            <a href="{% url 'home' %}" class="brand">
+                <span class="brand-mark" aria-hidden="true">{% icon 'ticket' 'brand-icon' %}</span>
+                Event Management
+            </a>
             {% with current=request.resolver_match.url_name %}
             <nav class="nav-links" aria-label="Main">
                 <a href="{% url 'home' %}"{% if current == 'home' %} aria-current="page"{% endif %}>Home</a>
@@ -34,9 +43,11 @@
                 {% endif %}
             </nav>
             {% endwith %}
-        </header>
+        </div>
+    </header>
 
-        <main>
+    <div class="container">
+        <main id="main-content" tabindex="-1">
             {% if messages %}
                 <div class="messages" role="status">
                     {% for message in messages %}
@@ -48,5 +59,36 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <span>&copy; {% now "Y" %} Event Management</span>
+            <nav class="footer-links" aria-label="Footer">
+                <a href="{% url 'event_list' %}">Browse events</a>
+                {% if user.is_authenticated %}<a href="{% url 'my_bookings' %}">My bookings</a>{% endif %}
+            </nav>
+        </div>
+    </footer>
+
+    <script>
+        // Show a loading spinner on submit and prevent double submissions.
+        // Runs after inline onsubmit handlers, so cancelled confirm() dialogs are respected.
+        document.addEventListener('submit', function (event) {
+            if (event.defaultPrevented) return;
+            var button = event.target.querySelector('button[type="submit"].btn');
+            if (!button || button.name) return;
+            button.classList.add('is-loading');
+            button.setAttribute('aria-busy', 'true');
+            setTimeout(function () { button.disabled = true; }, 0);
+        });
+        // Restore buttons if the page is shown again from the back/forward cache.
+        window.addEventListener('pageshow', function () {
+            document.querySelectorAll('.btn.is-loading').forEach(function (button) {
+                button.classList.remove('is-loading');
+                button.removeAttribute('aria-busy');
+                button.disabled = false;
+            });
+        });
+    </script>
 </body>
 </html>

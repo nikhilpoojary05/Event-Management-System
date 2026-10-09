@@ -9,31 +9,49 @@
     {% if bookings %}
         <div class="grid">
             {% for booking in bookings %}
-                <div class="card{% if booking.status == booking.Status.CANCELLED %} card-cancelled{% endif %}">
-                    <h3>{{ booking.event.event_name }}</h3>
+                <article class="card ticket-card{% if booking.status == booking.Status.CANCELLED %} card-cancelled{% endif %}">
+                    <div class="ticket-strip {{ booking.event|banner }}" aria-hidden="true"></div>
+                    <div class="ticket-head">
+                        <h3><a href="{% url 'event_detail' booking.event.id %}">{{ booking.event.event_name }}</a></h3>
+                        {% if booking.status == booking.Status.CANCELLED %}
+                            <span class="badge badge-muted">{{ booking.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge badge-ok">{{ booking.get_status_display }}</span>
+                        {% endif %}
+                    </div>
                     {% if booking.event.is_cancelled %}
                         <p class="event-cancelled-note">This event was cancelled by the organizer.</p>
                     {% endif %}
-                    <p><strong>Event Date:</strong> {{ booking.event.date }}, {{ booking.event.time }}</p>
-                    <p><strong>Tickets:</strong> {{ booking.number_of_tickets }} &times; {{ booking.unit_price|price }}</p>
-                    <p><strong>Total:</strong> {{ booking.total_price|price }}</p>
-                    <p><strong>Status:</strong> {{ booking.get_status_display }}</p>
-                    <p><strong>Booked On:</strong> {{ booking.booking_date }}</p>
+
+                    <ul class="event-meta">
+                        <li>{% icon 'calendar' %}<span><span class="sr-only">Event date: </span>{{ booking.event.date|date:"D, j M Y" }}, {{ booking.event.time }}</span></li>
+                        <li>{% icon 'pin' %}<span><span class="sr-only">Venue: </span>{{ booking.event.venue }}</span></li>
+                    </ul>
+
+                    <div class="ticket-totals">
+                        <p><strong>Tickets:</strong> {{ booking.number_of_tickets }} &times; {{ booking.unit_price|price }}</p>
+                        <p><strong>Total:</strong> {{ booking.total_price|price }}</p>
+                    </div>
+                    <p class="ticket-meta">Booking #{{ booking.id }} &middot; Booked {{ booking.booking_date|date:"j M Y, H:i" }}</p>
 
                     {% if booking.can_cancel %}
-                        <p><a href="{% url 'event_calendar' booking.event.id %}" class="calendar-link">&#128197; Add to calendar</a></p>
-                        <form method="post" action="{% url 'cancel_booking' booking.id %}" class="actions"
-                              onsubmit="return confirm('Cancel your booking for {{ booking.event.event_name|escapejs }}?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">Cancel Booking</button>
-                        </form>
+                        <div class="actions">
+                            <a href="{% url 'event_calendar' booking.event.id %}" class="calendar-link">{% icon 'calendar' %} Add to calendar</a>
+                            <form method="post" action="{% url 'cancel_booking' booking.id %}"
+                                  onsubmit="return confirm('Cancel your booking for {{ booking.event.event_name|escapejs }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">Cancel Booking</button>
+                            </form>
+                        </div>
                     {% endif %}
-                </div>
+                </article>
             {% endfor %}
         </div>
     {% elif not waitlist %}
         <div class="empty-state">
+            <div class="empty-icon">{% icon 'ticket' %}</div>
             <p>You have no bookings yet.</p>
+            <a href="{% url 'event_list' %}" class="btn">Browse events</a>
         </div>
     {% endif %}
 
@@ -41,17 +59,25 @@
         <h3 class="section-title">Waitlist</h3>
         <div class="grid">
             {% for entry in waitlist %}
-                <div class="card">
-                    <h3>{{ entry.event.event_name }}</h3>
-                    <p><strong>Event Date:</strong> {{ entry.event.date }}, {{ entry.event.time }}</p>
-                    <p><strong>Tickets wanted:</strong> {{ entry.number_of_tickets }}</p>
-                    <p><strong>Position:</strong> #{{ entry.position }} in line</p>
+                <article class="card ticket-card">
+                    <div class="ticket-strip {{ entry.event|banner }}" aria-hidden="true"></div>
+                    <div class="ticket-head">
+                        <h3><a href="{% url 'event_detail' entry.event.id %}">{{ entry.event.event_name }}</a></h3>
+                        <span class="badge badge-low">Waiting</span>
+                    </div>
+                    <ul class="event-meta">
+                        <li>{% icon 'calendar' %}<span><span class="sr-only">Event date: </span>{{ entry.event.date|date:"D, j M Y" }}, {{ entry.event.time }}</span></li>
+                    </ul>
+                    <div class="ticket-totals">
+                        <p><strong>Tickets wanted:</strong> {{ entry.number_of_tickets }}</p>
+                        <p><strong>Position:</strong> #{{ entry.position }} in line</p>
+                    </div>
                     <p class="form-note">We'll book automatically and email you if seats free up.</p>
                     <form method="post" action="{% url 'leave_waitlist' entry.id %}" class="actions">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-secondary">Leave Waitlist</button>
                     </form>
-                </div>
+                </article>
             {% endfor %}
         </div>
     {% endif %}

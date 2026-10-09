@@ -6,12 +6,13 @@
 {% block content %}
     <h2 class="page-title">Attendees: {{ event.event_name }}</h2>
 
+    <p class="page-subtitle">{{ event.date|date:"l, j F Y" }} &middot; {{ event.time }} &middot; {{ event.venue }}</p>
+
     <dl class="summary stats">
-        <dt>Date</dt><dd>{{ event.date }}, {{ event.time }}</dd>
-        <dt>Status</dt><dd>{% if event.is_cancelled %}Cancelled{% elif event.is_past %}Ended{% else %}On sale{% endif %}</dd>
-        <dt>Tickets sold</dt><dd>{{ tickets_sold }} / {{ event.capacity }}</dd>
-        <dt>Attendees</dt><dd>{{ attendee_count }}</dd>
-        <dt>Revenue</dt><dd>{{ revenue|money }}</dd>
+        <div><dt>Status</dt><dd>{% if event.is_cancelled %}Cancelled{% elif event.is_past %}Ended{% else %}On sale{% endif %}</dd></div>
+        <div><dt>Tickets sold</dt><dd>{{ tickets_sold }} / {{ event.capacity }}</dd></div>
+        <div><dt>Attendees</dt><dd>{{ attendee_count }}</dd></div>
+        <div><dt>Revenue</dt><dd>{{ revenue|money }}</dd></div>
     </dl>
 
     {% if bookings %}
@@ -43,7 +44,7 @@
             </table>
         </div>
     {% else %}
-        <div class="empty-state"><p>No bookings yet.</p></div>
+        <div class="empty-state"><div class="empty-icon">{% icon 'inbox' %}</div><p>No bookings yet.</p></div>
     {% endif %}
 
     {% if waitlist %}
@@ -76,6 +77,6 @@
     {% endif %}
 
     <div class="footer-link">
-        <a href="{% url 'my_events' %}">Back to My Events</a>
+        <a href="{% url 'my_events' %}">&larr; Back to My Events</a>
     </div>
 {% endblock %}

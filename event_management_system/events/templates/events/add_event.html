@@ -3,13 +3,15 @@
 {% block title %}Add Event{% endblock %}
 
 {% block content %}
-    <h2 class="page-title">Add New Event</h2>
-
     <div class="form-card">
+        <div class="form-header">
+            <h2 class="page-title">Add New Event</h2>
+            <p>Publish an event so people can find it and book tickets.</p>
+        </div>
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn">Add Event</button>
+            {% include 'events/_event_form_fields.html' %}
+            <button type="submit" class="btn btn-block">Add Event</button>
         </form>
     </div>
 {% endblock %}

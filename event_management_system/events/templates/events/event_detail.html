@@ -4,54 +4,74 @@
 {% block title %}{{ event.event_name }}{% endblock %}
 
 {% block content %}
-    <h2 class="page-title">{{ event.event_name }}</h2>
+    <div class="detail-hero {{ event|banner }}">
+        <div class="date-chip" aria-hidden="true">
+            <span class="month">{{ event.date|date:"M" }}</span>
+            <span class="day">{{ event.date|date:"j" }}</span>
+        </div>
+        <h2 class="page-title">{{ event.event_name }}</h2>
+    </div>
 
     {% if event.is_cancelled %}
         <div class="message-error" role="status">This event has been cancelled by the organizer.</div>
     {% endif %}
 
-    <div class="card detail-card">
-        <p><strong>Description:</strong> {{ event.description }}</p>
-        <p><strong>Date:</strong> {{ event.date }}</p>
-        <p><strong>Time:</strong> {{ event.time }}</p>
-        <p><strong>Venue:</strong> {{ event.venue }}</p>
-        <p><strong>Total Capacity:</strong> {{ event.capacity }}</p>
-        <p><strong>Available Seats:</strong> {{ remaining_seats }}{% if waiting_count %} ({{ waiting_count }} on the waitlist){% endif %}</p>
-        <p><strong>Price:</strong> {{ event.price|price }}</p>
-        {% if not event.is_cancelled and not event.is_past %}
-            <p><a href="{% url 'event_calendar' event.id %}" class="calendar-link">&#128197; Add to calendar</a></p>
-        {% endif %}
+    <div class="detail-layout">
+        <section class="card detail-card" aria-label="Event details">
+            <h3 class="sr-only">About this event</h3>
+            <p class="detail-description">{{ event.description }}</p>
 
-        <div class="actions">
-            {% if event.is_cancelled %}
-                <button class="btn btn-secondary" disabled>Event Cancelled</button>
-            {% elif event.is_past %}
-                <button class="btn btn-secondary" disabled>Event Ended</button>
-            {% elif user.is_authenticated %}
-                {% if remaining_seats > 0 %}
-                    <a href="{% url 'book_event' event.id %}" class="btn">Book Now</a>
-                {% elif my_waitlist_entry %}
-                    <span class="waitlist-status">You're #{{ my_waitlist_entry.position }} on the waitlist.</span>
-                {% else %}
-                    <a href="{% url 'book_event' event.id %}" class="btn">Join Waitlist</a>
-                {% endif %}
-            {% else %}
-                <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn">Login to Book</a>
+            <ul class="event-meta">
+                <li>{% icon 'calendar' %}<span><strong>Date:</strong> {{ event.date|date:"l, j F Y" }}</span></li>
+                <li>{% icon 'clock' %}<span><strong>Time:</strong> {{ event.time }}</span></li>
+                <li>{% icon 'pin' %}<span><strong>Venue:</strong> {{ event.venue }}</span></li>
+                <li>{% icon 'users' %}<span><strong>Total Capacity:</strong> {{ event.capacity }}</span></li>
+            </ul>
+
+            {% if not event.is_cancelled and not event.is_past %}
+                <p><a href="{% url 'event_calendar' event.id %}" class="calendar-link">{% icon 'calendar' %} Add to calendar</a></p>
             {% endif %}
-        </div>
 
-        {% if can_manage %}
-            <div class="actions manage-actions">
-                <span class="manage-label">Organizer:</span>
-                <a href="{% url 'event_attendees' event.id %}" class="btn btn-secondary">Attendees</a>
-                {% if not event.is_cancelled and not event.is_past %}
-                    <a href="{% url 'edit_event' event.id %}" class="btn btn-secondary">Edit Event</a>
+            {% if can_manage %}
+                <div class="actions manage-actions">
+                    <span class="manage-label">Organizer tools</span>
+                    <a href="{% url 'event_attendees' event.id %}" class="btn btn-secondary">Attendees</a>
+                    {% if not event.is_cancelled and not event.is_past %}
+                        <a href="{% url 'edit_event' event.id %}" class="btn btn-secondary">Edit Event</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </section>
+
+        <aside class="card booking-panel" aria-label="Tickets">
+            <p class="price-tag">{{ event.price|price }}</p>
+            <p>{% if event.price %}per ticket{% else %}No ticket price{% endif %}</p>
+
+            <ul class="event-meta">
+                <li>{% icon 'ticket' %}<span><strong>Available Seats:</strong> {{ remaining_seats }}{% if waiting_count %} ({{ waiting_count }} on the waitlist){% endif %}</span></li>
+            </ul>
+
+            <div class="actions">
+                {% if event.is_cancelled %}
+                    <button class="btn btn-secondary btn-block" disabled>Event Cancelled</button>
+                {% elif event.is_past %}
+                    <button class="btn btn-secondary btn-block" disabled>Event Ended</button>
+                {% elif user.is_authenticated %}
+                    {% if remaining_seats > 0 %}
+                        <a href="{% url 'book_event' event.id %}" class="btn btn-block">Book Now</a>
+                    {% elif my_waitlist_entry %}
+                        <span class="waitlist-status">You're #{{ my_waitlist_entry.position }} on the waitlist.</span>
+                    {% else %}
+                        <a href="{% url 'book_event' event.id %}" class="btn btn-block">Join Waitlist</a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'login' %}?next={% url 'book_event' event.id %}" class="btn btn-block">Login to Book</a>
                 {% endif %}
             </div>
-        {% endif %}
+        </aside>
     </div>
 
     <div class="footer-link">
-        <a href="{% url 'event_list' %}">Back to Events</a>
+        <a href="{% url 'event_list' %}">&larr; Back to Events</a>
     </div>
 {% endblock %}
