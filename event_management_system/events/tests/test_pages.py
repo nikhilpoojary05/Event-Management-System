@@ -147,7 +147,8 @@ class LayoutTests(TestCase):
 
     def test_every_page_uses_base_layout(self):
         self.client.force_login(make_user(can_add_events=True))
-        for url in self.public_urls() + self.private_urls():
+        logged_in_pages = [u for u in self.public_urls() if u != reverse('login')]  # login redirects when logged in
+        for url in logged_in_pages + self.private_urls():
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertTemplateUsed(response, 'events/base.html')
@@ -164,7 +165,8 @@ class LayoutTests(TestCase):
 
     def test_nav_for_logged_in_user_is_same_on_every_page(self):
         self.client.force_login(make_user())
-        for url in self.public_urls() + self.private_urls()[:2]:
+        logged_in_pages = [u for u in self.public_urls() if u != reverse('login')]
+        for url in logged_in_pages + self.private_urls()[:2]:
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertContains(response, f'href="{reverse("my_bookings")}"')

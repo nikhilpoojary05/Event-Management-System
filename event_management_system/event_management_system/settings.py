@@ -134,6 +134,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'event_list'
 
 # Email: printed to the runserver console in development, sent via SMTP in production.
 EMAIL_BACKEND = os.environ.get(
