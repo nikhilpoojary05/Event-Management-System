@@ -55,6 +55,12 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+Optionally add some future-dated sample events to try things out:
+
+```bash
+python manage.py seed_demo
+```
+
 Open http://127.0.0.1:8000 in your browser. The admin panel is at http://127.0.0.1:8000/admin/.
 
 In development, emails (booking confirmations etc.) are printed in the terminal running `runserver` instead of being sent.
